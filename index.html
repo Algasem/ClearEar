@@ -1448,8 +1448,8 @@
           <div class="screen-subtitle">Preset acoustic environments · auto-detect enabled</div>
         </div>
         <div class="header-actions">
-          <button class="btn"><i data-lucide="zap" style="width:14px;height:14px"></i> Auto-detect</button>
-          <button class="btn btn-primary"><i data-lucide="plus" style="width:14px;height:14px"></i> New</button>
+          <button class="btn" id="scene-autodetect-btn"><i data-lucide="zap" style="width:14px;height:14px"></i> Auto-detect</button>
+          <button class="btn btn-primary" id="scene-new-btn"><i data-lucide="plus" style="width:14px;height:14px"></i> New</button>
         </div>
       </div>
 
@@ -1466,8 +1466,8 @@
           <div class="screen-subtitle">Personal hearing profile · calibrated 14 days ago</div>
         </div>
         <div class="header-actions">
-          <button class="btn"><i data-lucide="rotate-ccw" style="width:14px;height:14px"></i> Reset</button>
-          <button class="btn"><i data-lucide="save" style="width:14px;height:14px"></i> Save</button>
+          <button class="btn" id="tune-reset-btn"><i data-lucide="rotate-ccw" style="width:14px;height:14px"></i> Reset</button>
+          <button class="btn" id="tune-save-btn"><i data-lucide="save" style="width:14px;height:14px"></i> Save</button>
         </div>
       </div>
 
@@ -1496,32 +1496,19 @@
         <div class="profile-side">
           <div class="profile-card">
             <div class="profile-label">Active profile</div>
-            <div class="profile-name">Default</div>
-            <div class="profile-meta">Mild high-frequency loss, slight boost above 2kHz</div>
+            <div class="profile-name" id="active-profile-name">Default</div>
+            <div class="profile-meta" id="active-profile-meta">Mild high-frequency loss, slight boost above 2kHz</div>
           </div>
 
           <div class="test-cta">
             <div class="test-cta-title">Take a hearing test</div>
             <div class="test-cta-desc">Calibrate ClearEar to your exact hearing curve in under 4 minutes</div>
-            <button class="btn btn-primary" style="width:100%">Start test</button>
+            <button class="btn btn-primary" id="hearing-test-btn" style="width:100%">Start test</button>
           </div>
 
           <div class="profile-card">
             <div class="profile-label">Saved profiles</div>
-            <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-              <div style="padding:10px;background:var(--bg-elevated);border-radius:8px;display:flex;justify-content:space-between;font-size:12.5px">
-                <span>Work</span>
-                <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted)">3 days ago</span>
-              </div>
-              <div style="padding:10px;background:var(--bg-elevated);border-radius:8px;display:flex;justify-content:space-between;font-size:12.5px">
-                <span>Concerts</span>
-                <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted)">2 wks ago</span>
-              </div>
-              <div style="padding:10px;background:var(--bg-elevated);border-radius:8px;display:flex;justify-content:space-between;font-size:12.5px">
-                <span>Sleep</span>
-                <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted)">1 mo ago</span>
-              </div>
-            </div>
+            <div id="saved-profiles-list" style="margin-top:12px;display:flex;flex-direction:column;gap:8px"></div>
           </div>
         </div>
       </div>
@@ -1599,8 +1586,8 @@
           <div class="screen-subtitle">Live transcription of conversations around you</div>
         </div>
         <div class="header-actions">
-          <button class="btn"><i data-lucide="globe" style="width:14px;height:14px"></i> English</button>
-          <button class="btn"><i data-lucide="bookmark" style="width:14px;height:14px"></i> Save</button>
+          <button class="btn" id="caption-language-btn"><i data-lucide="globe" style="width:14px;height:14px"></i> English</button>
+          <button class="btn" id="caption-save-btn"><i data-lucide="bookmark" style="width:14px;height:14px"></i> Save</button>
         </div>
       </div>
 
@@ -1608,26 +1595,10 @@
         <div class="captions-stream">
           <div class="captions-status">
             <div class="status-pulse"></div>
-            <span style="font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em">Transcribing live</span>
+            <span id="captions-status-text" style="font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em">Waiting for microphone</span>
           </div>
 
           <div id="captions-content">
-            <div class="caption-segment">
-              <div class="caption-speaker">Person 1 · 11:42</div>
-              <div class="captions-text">So we were thinking about going to that new place downtown, the one near the bookstore.</div>
-            </div>
-            <div class="caption-segment">
-              <div class="caption-speaker">You · 11:43</div>
-              <div class="captions-text">Is that the Italian one or the Thai place?</div>
-            </div>
-            <div class="caption-segment">
-              <div class="caption-speaker">Person 1 · 11:43</div>
-              <div class="captions-text">The Italian one. They have that pasta you liked last time.</div>
-            </div>
-            <div class="caption-segment live">
-              <div class="caption-speaker">Person 1 · now</div>
-              <div class="captions-text" id="live-caption">Yeah we could probably head over around seven if that works<span class="caption-cursor"></span></div>
-            </div>
           </div>
         </div>
 
@@ -1636,34 +1607,32 @@
             <div class="suggestions-title">This conversation</div>
             <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0">
               <span style="color:var(--text-secondary)">Duration</span>
-              <span style="font-family:var(--font-mono)">4:21</span>
+              <span id="caption-duration" style="font-family:var(--font-mono)">0:00</span>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0">
               <span style="color:var(--text-secondary)">Speakers</span>
-              <span style="font-family:var(--font-mono)">2</span>
+              <span id="caption-speakers" style="font-family:var(--font-mono)">1</span>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0">
               <span style="color:var(--text-secondary)">Confidence</span>
-              <span style="font-family:var(--font-mono);color:var(--accent)">96%</span>
+              <span id="caption-confidence" style="font-family:var(--font-mono);color:var(--accent)">0%</span>
             </div>
           </div>
 
           <div class="suggestions-card">
             <div class="suggestions-title">Recent saves</div>
-            <div class="suggestion">Team meeting · today</div>
-            <div class="suggestion">Doctor visit · yesterday</div>
-            <div class="suggestion">Dinner w/ Sam · 2d ago</div>
+            <div id="recent-saves-list"></div>
           </div>
 
           <div class="suggestions-card">
             <div class="suggestions-title">Settings</div>
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 0">
               <span>Save automatically</span>
-              <div class="power-toggle on" style="width:34px;height:18px"></div>
+              <div class="power-toggle on" id="caption-auto-save-toggle" style="width:34px;height:18px"></div>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 0">
               <span>Speaker labels</span>
-              <div class="power-toggle on" style="width:34px;height:18px"></div>
+              <div class="power-toggle on" id="caption-speaker-labels-toggle" style="width:34px;height:18px"></div>
             </div>
           </div>
         </div>
@@ -1675,35 +1644,35 @@
       <div class="screen-header">
         <div>
           <h1 class="screen-title">Journal</h1>
-          <div class="screen-subtitle">Tuesday, June 3 · listening history</div>
+          <div class="screen-subtitle" id="journal-subtitle">Today · live listening history</div>
         </div>
         <div class="header-actions">
-          <button class="btn">Day</button>
-          <button class="btn">Week</button>
-          <button class="btn">Month</button>
+          <button class="btn" data-range="day">Day</button>
+          <button class="btn" data-range="week">Week</button>
+          <button class="btn" data-range="month">Month</button>
         </div>
       </div>
 
       <div class="journal-summary">
         <div class="stat-card">
           <div class="stat-label">Avg exposure</div>
-          <div class="stat-value">58<span class="stat-value-unit">dB</span></div>
-          <div class="stat-trend">Within healthy range</div>
+          <div class="stat-value" id="journal-avg-exposure">--<span class="stat-value-unit">dB</span></div>
+          <div class="stat-trend" id="journal-avg-note">Waiting for audio data</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Peak today</div>
-          <div class="stat-value">91<span class="stat-value-unit">dB</span></div>
-          <div class="stat-trend down">↗ Subway at 8:42 am</div>
+          <div class="stat-value" id="journal-peak-exposure">--<span class="stat-value-unit">dB</span></div>
+          <div class="stat-trend down" id="journal-peak-note">No peaks yet</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Speech hours</div>
-          <div class="stat-value">3.4<span class="stat-value-unit">hrs</span></div>
-          <div class="stat-trend up">↑ Above average</div>
+          <div class="stat-value" id="journal-speech-hours">0.0<span class="stat-value-unit">hrs</span></div>
+          <div class="stat-trend up" id="journal-speech-note">No speech tracked</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Scenes used</div>
-          <div class="stat-value">5</div>
-          <div class="stat-trend">2 auto-switched</div>
+          <div class="stat-value" id="journal-scenes-used">0</div>
+          <div class="stat-trend" id="journal-scenes-note">No scene changes yet</div>
         </div>
       </div>
 
@@ -1721,7 +1690,7 @@
       <div class="events-section">
         <div class="timeline-header">
           <span class="timeline-title">Notable events</span>
-          <button class="btn"><i data-lucide="filter" style="width:13px;height:13px"></i> Filter</button>
+          <button class="btn" id="journal-filter-btn"><i data-lucide="filter" style="width:13px;height:13px"></i> Filter</button>
         </div>
 
         <div class="events-list" id="events-list">
@@ -1742,6 +1711,34 @@
   </div>
 </div>
 
+<div id="hearing-test-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:120;align-items:center;justify-content:center;padding:24px">
+  <div style="width:min(720px,100%);background:var(--bg-surface);border:1px solid var(--border-default);border-radius:18px;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.45)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px">
+      <div>
+        <div class="screen-title" style="font-size:32px">Hearing test</div>
+        <div class="screen-subtitle" id="hearing-test-subtitle">Step 1 of 8 · 60Hz</div>
+      </div>
+      <button class="btn btn-ghost" id="hearing-test-close-btn"><i data-lucide="x" style="width:16px;height:16px"></i></button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 240px;gap:20px;align-items:center">
+      <div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Play the tone and adjust the boost until it feels just audible.</div>
+        <div style="font-family:var(--font-display);font-size:54px;line-height:1" id="hearing-test-frequency">60Hz</div>
+        <div style="margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)" id="hearing-test-hint">Use the slider to set the needed boost in dB.</div>
+        <input id="hearing-test-slider" type="range" min="-12" max="12" value="0" style="width:100%;margin-top:18px">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary" id="hearing-test-play-btn">Play tone</button>
+        <button class="btn" id="hearing-test-too-quiet-btn">Too quiet</button>
+        <button class="btn" id="hearing-test-just-right-btn">Just audible</button>
+        <button class="btn" id="hearing-test-too-loud-btn">Too loud</button>
+        <button class="btn" id="hearing-test-next-btn">Next</button>
+        <button class="btn" id="hearing-test-finish-btn">Finish</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   // ─── Bootstrap icons ───
   lucide.createIcons();
@@ -1752,9 +1749,12 @@
     preset: 'Quiet space',
     db: 42,
     power: true,
+    sceneAutoDetect: true,
+    profileName: 'Default',
     controls: { cancel: true, speech: true, transparency: false },
     eq: [0, 0, 0, 0, 2, 4, 5, 3]
   };
+  window.state = state;
 
   // ─── Navigation ───
   function goto(screen) {
@@ -1834,11 +1834,7 @@
     visCtx.arc(cx, cy, 150, 0, Math.PI * 2);
     visCtx.stroke();
 
-    // update db readout occasionally
-    if (Math.random() < 0.05) {
-      state.db = Math.max(28, Math.min(78, state.db + (Math.random() - 0.5) * 4));
-      document.getElementById('db-readout').textContent = Math.round(state.db);
-    }
+    document.getElementById('db-readout').textContent = Math.round(state.db);
   }
 
   // ─── Spectrum analyzer ───
@@ -1846,6 +1842,7 @@
   const specCtx = specCanvas.getContext('2d');
   const specBars = 48;
   const specData = new Array(specBars).fill(0).map(() => Math.random() * 0.5);
+  window.specData = specData;
 
   function drawSpectrum(t) {
     const w = specCanvas.width, h = specCanvas.height;
@@ -1853,10 +1850,11 @@
 
     const barW = w / specBars;
     for (let i = 0; i < specBars; i++) {
-      // animate with bell curve favoring speech frequencies (mids)
-      const speechWeight = Math.exp(-Math.pow((i - specBars * 0.4) / (specBars * 0.3), 2));
-      const target = (0.2 + Math.sin(t * 0.003 + i * 0.2) * 0.3 + Math.random() * 0.4) * speechWeight + 0.1;
-      specData[i] += (target - specData[i]) * 0.15;
+      if (!window.audioEngine?.running) {
+        const speechWeight = Math.exp(-Math.pow((i - specBars * 0.4) / (specBars * 0.3), 2));
+        const target = (0.2 + Math.sin(t * 0.003 + i * 0.2) * 0.3 + Math.random() * 0.4) * speechWeight + 0.1;
+        specData[i] += (target - specData[i]) * 0.15;
+      }
 
       const barH = specData[i] * h * 0.9;
       const x = i * barW;
@@ -1993,39 +1991,131 @@
   }
 
   // ─── Scenes ───
-  const scenes = [
-    { id: 'quiet', name: 'Quiet space', icon: 'home', desc: 'Light enhancement, full transparency for ambient awareness', cancel: 20, speech: 40, active: true },
-    { id: 'crowded', name: 'Crowded place', icon: 'users', desc: 'Aggressive background suppression, narrow speech focus', cancel: 90, speech: 95 },
-    { id: 'lecture', name: 'Lecture hall', icon: 'graduation-cap', desc: 'Single-speaker boost, reverb suppression', cancel: 70, speech: 100 },
-    { id: 'restaurant', name: 'Restaurant', icon: 'utensils', desc: 'Clatter reduction, conversation isolation', cancel: 80, speech: 90 },
-    { id: 'outdoor', name: 'Outdoor', icon: 'tree-pine', desc: 'Wind dampening, traffic awareness preserved', cancel: 60, speech: 70 },
-    { id: 'phone', name: 'Phone call', icon: 'phone', desc: 'Voice clarity boost, mic noise suppression', cancel: 85, speech: 100 },
-    { id: 'music', name: 'Music', icon: 'music', desc: 'Bypass speech filter, preserve full frequency range', cancel: 30, speech: 0 },
-    { id: 'sleep', name: 'Sleep', icon: 'moon', desc: 'Block all but emergency sounds, fade to silence', cancel: 100, speech: 0 },
+  const SCENE_STORAGE_KEY = 'clearear.scenes';
+  const DEFAULT_SCENES = [
+    { id: 'quiet', name: 'Quiet space', icon: 'home', desc: 'Low noise, relaxed transparency, gentle speech lift', cancel: 18, speech: 35, transparency: 92, beam: false, priority: 1 },
+    { id: 'library', name: 'Library', icon: 'book-open', desc: 'Almost silent room, preserve faint sounds and soft speech', cancel: 24, speech: 25, transparency: 98, beam: false, priority: 1 },
+    { id: 'office', name: 'Office', icon: 'briefcase', desc: 'Balanced work focus, suppress chatter and keyboard clatter', cancel: 56, speech: 76, transparency: 42, beam: true, priority: 2 },
+    { id: 'lecture', name: 'Lecture hall', icon: 'graduation-cap', desc: 'Single-speaker focus with strong reverb suppression', cancel: 72, speech: 98, transparency: 18, beam: true, priority: 2 },
+    { id: 'classroom', name: 'Classroom', icon: 'school', desc: 'Teacher-first speech boost with moderate room awareness', cancel: 58, speech: 90, transparency: 30, beam: true, priority: 2 },
+    { id: 'restaurant', name: 'Restaurant', icon: 'utensils', desc: 'Conversation isolation against clatter and dish noise', cancel: 82, speech: 94, transparency: 16, beam: true, priority: 3 },
+    { id: 'crowded', name: 'Crowded place', icon: 'users', desc: 'Aggressive background suppression for busy social spaces', cancel: 90, speech: 96, transparency: 10, beam: true, priority: 3 },
+    { id: 'commute', name: 'Commute', icon: 'train', desc: 'Transit rumble reduction with speech retention', cancel: 86, speech: 82, transparency: 20, beam: true, priority: 3 },
+    { id: 'outdoor', name: 'Outdoor', icon: 'tree-pine', desc: 'Wind dampening while keeping traffic and movement awareness', cancel: 60, speech: 66, transparency: 72, beam: true, priority: 2 },
+    { id: 'windy', name: 'Windy outdoor', icon: 'wind', desc: 'Wind noise reduction with stronger low-frequency cleanup', cancel: 74, speech: 58, transparency: 68, beam: true, priority: 2 },
+    { id: 'phone', name: 'Phone call', icon: 'phone', desc: 'Voice clarity mode with narrow speech beam', cancel: 88, speech: 100, transparency: 8, beam: true, priority: 3 },
+    { id: 'music', name: 'Music', icon: 'music', desc: 'Full-range playback with minimal processing and high transparency', cancel: 12, speech: 0, transparency: 100, beam: false, priority: 1 },
+    { id: 'gym', name: 'Gym', icon: 'dumbbell', desc: 'Machine noise suppression with high-energy awareness', cancel: 68, speech: 60, transparency: 52, beam: true, priority: 2 },
+    { id: 'theater', name: 'Theater', icon: 'clapperboard', desc: 'Quiet room optimization for dialogue and subtle ambience', cancel: 76, speech: 88, transparency: 22, beam: false, priority: 2 },
+    { id: 'tv', name: 'TV / media', icon: 'tv', desc: 'Dialogue boost for watching shows without losing background detail', cancel: 48, speech: 92, transparency: 50, beam: false, priority: 1 },
+    { id: 'sleep', name: 'Sleep', icon: 'moon', desc: 'Softest possible passthrough with emergency sound awareness', cancel: 96, speech: 0, transparency: 4, beam: false, priority: 1 }
   ];
+  const sceneCatalog = loadSceneCatalog();
+
+  function loadSceneCatalog() {
+    const raw = localStorage.getItem(SCENE_STORAGE_KEY);
+    if (!raw) return DEFAULT_SCENES.slice();
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return DEFAULT_SCENES.slice();
+      const combined = DEFAULT_SCENES.slice();
+      parsed.forEach(function (scene) {
+        if (!scene || typeof scene !== 'object' || !scene.id || !scene.name) return;
+        if (combined.some(function (item) { return item.id === scene.id; })) return;
+        combined.push(scene);
+      });
+      return combined;
+    } catch (err) {
+      return DEFAULT_SCENES.slice();
+    }
+  }
+
+  function saveSceneCatalog() {
+    localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(sceneCatalog.filter(function (scene) {
+      return DEFAULT_SCENES.every(function (base) { return base.id !== scene.id; });
+    })));
+  }
+
+  function getSceneById(id) {
+    return sceneCatalog.find(function (scene) { return scene.id === id; }) || sceneCatalog[0];
+  }
+
+  function syncControlButtons() {
+    document.querySelectorAll('.vis-control').forEach(function (button) {
+      const ctrl = button.dataset.control;
+      const value = !!state.controls[ctrl];
+      button.classList.toggle('on', value);
+      const val = button.querySelector('.vis-control-value');
+      if (!val) return;
+      if (ctrl === 'cancel') val.textContent = value ? 'High' : 'Off';
+      else if (ctrl === 'speech') val.textContent = value ? 'On' : 'Off';
+      else if (ctrl === 'transparency') val.textContent = value ? 'On' : 'Off';
+    });
+  }
+
+  function updatePresetBadge() {
+    const current = document.getElementById('current-preset');
+    if (current) current.textContent = state.preset;
+  }
+
+  function applyScene(scene, options) {
+    const picked = typeof scene === 'string' ? getSceneById(scene) : scene;
+    if (!picked) return;
+    window.clearEarSceneConfig = picked;
+    state.preset = picked.name;
+    state.controls.cancel = picked.cancel >= 50;
+    state.controls.speech = picked.speech > 0;
+    state.controls.transparency = picked.transparency >= 50;
+    syncControlButtons();
+    updatePresetBadge();
+    if (window.audioEngine && typeof window.audioEngine.applyScene === 'function') {
+      window.audioEngine.applyScene(picked);
+    }
+    if (window.audioEngine && typeof window.audioEngine.applyControls === 'function') {
+      window.audioEngine.applyControls(state.controls);
+    }
+    if (!(options && options.silent)) {
+      if (typeof addJournalEvent === 'function') {
+        addJournalEvent({
+          kind: 'scene',
+          tag: 'scene',
+          name: picked.name,
+          meta: picked.desc,
+          db: state.db,
+          preset: picked.name,
+          auto: !!(options && options.auto)
+        });
+      }
+      toast('Scene changed', 'Now using ' + picked.name);
+    }
+    renderScenes();
+  }
 
   function renderScenes() {
     const grid = document.getElementById('scenes-grid');
-    grid.innerHTML = scenes.map(s => `
-      <div class="scene-card ${s.active ? 'active' : ''}" data-scene="${s.id}">
+    const active = sceneCatalog.find(function (scene) { return scene.name === state.preset || scene.id === state.preset; }) || sceneCatalog[0];
+    grid.innerHTML = sceneCatalog.map(function (scene) {
+      const activeClass = active && (scene.id === active.id || scene.name === active.name) ? 'active' : '';
+      return `
+      <div class="scene-card ${activeClass}" data-scene="${scene.id}">
         <div class="scene-icon-wrap">
-          <i data-lucide="${s.icon}" style="width:22px;height:22px"></i>
+          <i data-lucide="${scene.icon}" style="width:22px;height:22px"></i>
         </div>
-        <div class="scene-name">${s.name}</div>
-        <div class="scene-desc">${s.desc}</div>
+        <div class="scene-name">${scene.name}</div>
+        <div class="scene-desc">${scene.desc}</div>
         <div class="scene-stats">
           <div class="scene-stat">
             <span>NC</span>
-            <div class="scene-stat-bar"><div class="scene-stat-bar-fill" style="width:${s.cancel}%"></div></div>
+            <div class="scene-stat-bar"><div class="scene-stat-bar-fill" style="width:${scene.cancel}%"></div></div>
           </div>
           <div class="scene-stat">
             <span>SP</span>
-            <div class="scene-stat-bar"><div class="scene-stat-bar-fill" style="width:${s.speech}%"></div></div>
+            <div class="scene-stat-bar"><div class="scene-stat-bar-fill" style="width:${scene.speech}%"></div></div>
           </div>
         </div>
       </div>
-    `).join('') + `
-      <div class="scene-card scene-card-new">
+    `; }).join('') + `
+      <div class="scene-card scene-card-new" id="scene-create-card">
         <i data-lucide="plus" style="width:28px;height:28px;margin-bottom:12px"></i>
         <div style="font-family:var(--font-display);font-size:18px">Create scene</div>
         <div style="font-size:11.5px;color:var(--text-faint);margin-top:6px">Build your own preset</div>
@@ -2033,16 +2123,48 @@
     `;
     lucide.createIcons();
 
-    grid.querySelectorAll('.scene-card[data-scene]').forEach(c => {
-      c.addEventListener('click', () => {
-        scenes.forEach(s => s.active = s.id === c.dataset.scene);
-        const picked = scenes.find(s => s.id === c.dataset.scene);
-        state.preset = picked.name;
-        document.getElementById('current-preset').textContent = picked.name;
-        renderScenes();
-        toast('Scene changed', `Now using ${picked.name}`);
+    grid.querySelectorAll('.scene-card[data-scene]').forEach(function (card) {
+      card.addEventListener('click', function () {
+        applyScene(card.dataset.scene);
       });
     });
+    const createCard = document.getElementById('scene-create-card');
+    if (createCard) {
+      createCard.addEventListener('click', createCustomScene);
+    }
+  }
+
+  function createCustomScene() {
+    const name = window.prompt('Scene name', 'Custom scene');
+    if (!name) return;
+    const base = getSceneById(sceneCatalog.find(function (scene) { return scene.name === state.preset; }) ? sceneCatalog.find(function (scene) { return scene.name === state.preset; }).id : 'quiet');
+    const newScene = {
+      id: 'custom-' + Date.now().toString(36),
+      name: name.trim(),
+      icon: 'sparkles',
+      desc: 'Custom preset based on ' + state.preset,
+      cancel: base.cancel,
+      speech: base.speech,
+      transparency: base.transparency,
+      beam: base.beam,
+      priority: base.priority
+    };
+    sceneCatalog.push(newScene);
+    saveSceneCatalog();
+    renderScenes();
+    applyScene(newScene, { silent: true });
+    toast('Scene created', newScene.name);
+  }
+
+  function suggestSceneFromTelemetry(metrics) {
+    if (metrics.db >= 92 && !metrics.speechDetected) return getSceneById('commute');
+    if (metrics.db >= 85 && metrics.speechDetected) return getSceneById('restaurant');
+    if (metrics.db >= 78 && !metrics.speechDetected) return getSceneById('crowded');
+    if (metrics.db >= 72 && metrics.speechDetected) return getSceneById('lecture');
+    if (metrics.db >= 60 && metrics.speechDetected) return getSceneById('office');
+    if (metrics.db >= 60) return getSceneById('tv');
+    if (metrics.db <= 42) return getSceneById('quiet');
+    return getSceneById('outdoor');
   }
 
   // ─── EQ bands ───
@@ -2059,10 +2181,1021 @@
     wrap.querySelectorAll('input').forEach(s => {
       s.addEventListener('input', e => {
         state.eq[e.target.dataset.band] = parseInt(e.target.value);
+        syncEqToEngine();
+        updateTuneUI();
         renderEQ();
       });
     });
   }
+
+  // ─── Tune / hearing profiles ───
+  const TUNE_STORAGE_KEY = 'clearear.tuneState';
+  const PROFILE_LIBRARY_KEY = 'clearear.profileLibrary';
+  const DEFAULT_PROFILE = {
+    id: 'default',
+    name: 'Default',
+    description: 'Mild high-frequency loss, slight boost above 2kHz',
+    gains: [0, 0, 0, 0, 2, 4, 5, 3],
+    curve: [-4, -6, -8, -10, -14, -18, -22, -26]
+  };
+  const TUNE_FREQUENCIES = [60, 170, 310, 600, 1000, 3000, 6000, 12000];
+  const hearingTestState = {
+    open: false,
+    index: 0,
+    responses: new Array(TUNE_FREQUENCIES.length).fill(0),
+    toneCtx: null,
+    toneGain: null,
+    toneOscillator: null,
+    toneTimeout: null
+  };
+  let profileLibrary = loadProfileLibrary();
+  let activeProfile = loadActiveProfile();
+  state.eq = activeProfile.gains.slice();
+  state.profileName = activeProfile.name;
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function cloneProfile(profile) {
+    return {
+      id: profile.id,
+      name: profile.name,
+      description: profile.description,
+      gains: profile.gains.slice(),
+      curve: profile.curve ? profile.curve.slice() : DEFAULT_PROFILE.curve.slice()
+    };
+  }
+
+  function loadProfileLibrary() {
+    const raw = localStorage.getItem(PROFILE_LIBRARY_KEY);
+    if (!raw) return [cloneProfile(DEFAULT_PROFILE)];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || !parsed.length) return [cloneProfile(DEFAULT_PROFILE)];
+      return parsed.map(function (profile) {
+        return {
+          id: profile.id || createId('profile'),
+          name: profile.name || 'Profile',
+          description: profile.description || '',
+          gains: Array.isArray(profile.gains) ? profile.gains.slice(0, 8).map(function (gain) { return clamp(Number(gain) || 0, -12, 12); }) : DEFAULT_PROFILE.gains.slice(),
+          curve: Array.isArray(profile.curve) ? profile.curve.slice(0, 8).map(function (point) { return clamp(Number(point) || 0, -60, 20); }) : DEFAULT_PROFILE.curve.slice()
+        };
+      });
+    } catch (err) {
+      return [cloneProfile(DEFAULT_PROFILE)];
+    }
+  }
+
+  function saveProfileLibrary() {
+    localStorage.setItem(PROFILE_LIBRARY_KEY, JSON.stringify(profileLibrary));
+  }
+
+  function loadActiveProfile() {
+    const raw = localStorage.getItem(TUNE_STORAGE_KEY);
+    if (!raw) return cloneProfile(profileLibrary[0] || DEFAULT_PROFILE);
+    try {
+      const profile = JSON.parse(raw);
+      if (!profile || !Array.isArray(profile.gains)) return cloneProfile(profileLibrary[0] || DEFAULT_PROFILE);
+      return {
+        id: profile.id || 'active',
+        name: profile.name || 'Default',
+        description: profile.description || '',
+        gains: profile.gains.slice(0, 8).map(function (gain) { return clamp(Number(gain) || 0, -12, 12); }),
+        curve: Array.isArray(profile.curve) ? profile.curve.slice(0, 8) : DEFAULT_PROFILE.curve.slice()
+      };
+    } catch (err) {
+      return cloneProfile(profileLibrary[0] || DEFAULT_PROFILE);
+    }
+  }
+
+  function saveActiveProfile() {
+    localStorage.setItem(TUNE_STORAGE_KEY, JSON.stringify(activeProfile));
+  }
+
+  function syncEqToEngine() {
+    if (window.audioEngine && typeof window.audioEngine.setEqBands === 'function') {
+      window.audioEngine.setEqBands(state.eq.slice());
+    }
+    activeProfile.gains = state.eq.slice();
+    saveActiveProfile();
+  }
+
+  function setActiveProfile(profile, options) {
+    activeProfile = cloneProfile(profile);
+    state.profileName = activeProfile.name;
+    state.eq = activeProfile.gains.slice();
+    syncEqToEngine();
+    renderEQ();
+    updateTuneUI();
+    drawAudiogram();
+    if (!(options && options.silent)) {
+      toast('Profile applied', activeProfile.name);
+    }
+  }
+
+  function renderSavedProfiles() {
+    const list = document.getElementById('saved-profiles-list');
+    if (!list) return;
+    list.innerHTML = profileLibrary.map(function (profile) {
+      return '<div class="suggestion" data-profile-id="' + profile.id + '">' +
+        '<div style="display:flex;justify-content:space-between;gap:12px">' +
+          '<span>' + escapeHtml(profile.name) + '</span>' +
+          '<span style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted)">' + profile.gains.filter(function (gain) { return gain > 0; }).length + ' bands</span>' +
+        '</div>' +
+        '<div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted);margin-top:4px">' + escapeHtml(profile.description || 'Custom profile') + '</div>' +
+      '</div>';
+    }).join('');
+
+    list.querySelectorAll('[data-profile-id]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        const profile = profileLibrary.find(function (item) { return item.id === row.getAttribute('data-profile-id'); });
+        if (!profile) return;
+        setActiveProfile(profile);
+      });
+    });
+  }
+
+  function updateTuneUI() {
+    const nameEl = document.getElementById('active-profile-name');
+    const metaEl = document.getElementById('active-profile-meta');
+    if (nameEl) nameEl.textContent = activeProfile.name;
+    if (metaEl) metaEl.textContent = activeProfile.description || 'Custom hearing profile';
+    renderSavedProfiles();
+  }
+
+  function buildAudiogramCurve() {
+    const hearingLoss = activeProfile.curve || DEFAULT_PROFILE.curve;
+    const eqLift = state.eq;
+    return hearingLoss.map(function (value, index) {
+      return value + (eqLift[index] || 0) * 1.5;
+    });
+  }
+
+  function drawAudiogram() {
+    const w = audCanvas.width, h = audCanvas.height;
+    audCtx.clearRect(0, 0, w, h);
+
+    const padding = { top: 30, right: 30, bottom: 30, left: 40 };
+    const plotW = w - padding.left - padding.right;
+    const plotH = h - padding.top - padding.bottom;
+    const curve = buildAudiogramCurve();
+
+    audCtx.strokeStyle = '#2a2a2a';
+    audCtx.lineWidth = 1;
+    audCtx.font = '11px JetBrains Mono';
+    audCtx.fillStyle = '#6b6b6b';
+
+    for (let i = 0; i <= 4; i++) {
+      const y = padding.top + (plotH / 4) * i;
+      audCtx.beginPath();
+      audCtx.moveTo(padding.left, y);
+      audCtx.lineTo(w - padding.right, y);
+      audCtx.stroke();
+      const labels = ['0', '-15', '-30', '-45', '-60'];
+      audCtx.fillText(labels[i] + 'dB', 4, y + 4);
+    }
+
+    function plot(data, color, fillColor) {
+      const points = data.map(function (v, i) {
+        const x = padding.left + (plotW / 7) * i;
+        const y = padding.top + ((-v + 20) / 80) * plotH;
+        return [x, y];
+      });
+
+      audCtx.fillStyle = fillColor;
+      audCtx.beginPath();
+      audCtx.moveTo(points[0][0], padding.top + plotH);
+      points.forEach(function (p) { audCtx.lineTo(p[0], p[1]); });
+      audCtx.lineTo(points[points.length - 1][0], padding.top + plotH);
+      audCtx.closePath();
+      audCtx.fill();
+
+      audCtx.strokeStyle = color;
+      audCtx.lineWidth = 2;
+      audCtx.beginPath();
+      points.forEach(function (p, i) { if (i === 0) audCtx.moveTo(p[0], p[1]); else audCtx.lineTo(p[0], p[1]); });
+      audCtx.stroke();
+
+      points.forEach(function (p) {
+        audCtx.fillStyle = '#0a0a0a';
+        audCtx.beginPath();
+        audCtx.arc(p[0], p[1], 5, 0, Math.PI * 2);
+        audCtx.fill();
+        audCtx.fillStyle = color;
+        audCtx.beginPath();
+        audCtx.arc(p[0], p[1], 3, 0, Math.PI * 2);
+        audCtx.fill();
+      });
+    }
+
+    plot(curve, '#d9f99d', 'rgba(217, 249, 157, 0.08)');
+    plot(curve.map(function (value) { return value + 2; }), '#93c5fd', 'rgba(147, 197, 253, 0.08)');
+  }
+
+  function updateHearingTestUI() {
+    const subtitle = document.getElementById('hearing-test-subtitle');
+    const frequency = document.getElementById('hearing-test-frequency');
+    const slider = document.getElementById('hearing-test-slider');
+    if (hearingTestState.index >= TUNE_FREQUENCIES.length) {
+      if (subtitle) subtitle.textContent = 'Complete';
+      if (frequency) frequency.textContent = 'Done';
+      return;
+    }
+    if (subtitle) subtitle.textContent = 'Step ' + (hearingTestState.index + 1) + ' of ' + TUNE_FREQUENCIES.length + ' · ' + TUNE_FREQUENCIES[hearingTestState.index] + 'Hz';
+    if (frequency) frequency.textContent = TUNE_FREQUENCIES[hearingTestState.index] + 'Hz';
+    if (slider) slider.value = hearingTestState.responses[hearingTestState.index];
+  }
+
+  async function ensureToneContext() {
+    if (!hearingTestState.toneCtx) hearingTestState.toneCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await hearingTestState.toneCtx.resume();
+  }
+
+  async function playTestTone() {
+    if (hearingTestState.index >= TUNE_FREQUENCIES.length) return;
+    await ensureToneContext();
+    if (hearingTestState.toneOscillator) {
+      try { hearingTestState.toneOscillator.stop(); } catch (err) {}
+    }
+    const ctx = hearingTestState.toneCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = TUNE_FREQUENCIES[hearingTestState.index];
+    gain.gain.value = 0.02;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.7);
+    hearingTestState.toneOscillator = osc;
+    hearingTestState.toneGain = gain;
+    hearingTestState.toneTimeout = window.setTimeout(function () {
+      try { osc.disconnect(); gain.disconnect(); } catch (err) {}
+    }, 800);
+  }
+
+  function commitHearingStep() {
+    if (hearingTestState.index >= TUNE_FREQUENCIES.length) return;
+    hearingTestState.responses[hearingTestState.index] = Number(document.getElementById('hearing-test-slider').value || 0);
+    hearingTestState.index += 1;
+    updateHearingTestUI();
+    if (hearingTestState.index < TUNE_FREQUENCIES.length) {
+      playTestTone();
+    }
+  }
+
+  function finishHearingTest() {
+    hearingTestState.responses[hearingTestState.index] = Number(document.getElementById('hearing-test-slider').value || 0);
+    const gains = hearingTestState.responses.map(function (value) {
+      return clamp(Math.round(value), -12, 12);
+    });
+    const profile = {
+      id: createId('profile'),
+      name: 'Hearing Test',
+      description: 'Calibrated from live tone responses',
+      gains: gains,
+      curve: gains.map(function (gain, index) {
+        return DEFAULT_PROFILE.curve[index] - gain * 2;
+      })
+    };
+    profileLibrary.unshift(cloneProfile(profile));
+    saveProfileLibrary();
+    setActiveProfile(profile);
+    closeHearingTest();
+    addJournalEvent({
+      kind: 'scene',
+      tag: 'profile',
+      name: 'Hearing test complete',
+      meta: 'Generated a new hearing profile',
+      db: state.db,
+      preset: profile.name,
+      auto: false
+    });
+    toast('Hearing test complete', 'Profile applied');
+  }
+
+  function openHearingTest() {
+    hearingTestState.open = true;
+    hearingTestState.index = 0;
+    hearingTestState.responses = new Array(TUNE_FREQUENCIES.length).fill(0);
+    const modal = document.getElementById('hearing-test-modal');
+    modal.style.display = 'flex';
+    updateHearingTestUI();
+    playTestTone();
+  }
+
+  function closeHearingTest() {
+    hearingTestState.open = false;
+    const modal = document.getElementById('hearing-test-modal');
+    modal.style.display = 'none';
+    if (hearingTestState.toneOscillator) {
+      try { hearingTestState.toneOscillator.stop(); } catch (err) {}
+      hearingTestState.toneOscillator = null;
+    }
+  }
+
+  function resetTuneProfile() {
+    setActiveProfile(DEFAULT_PROFILE);
+    toast('Profile reset', 'Returned to Default');
+  }
+
+  function saveCurrentProfile() {
+    activeProfile = cloneProfile(activeProfile);
+    activeProfile.id = activeProfile.id === 'default' ? createId('profile') : activeProfile.id;
+    const name = window.prompt('Profile name', activeProfile.name || 'Custom profile');
+    if (name && name.trim()) activeProfile.name = name.trim();
+    const existingIndex = profileLibrary.findIndex(function (profile) { return profile.id === activeProfile.id; });
+    if (existingIndex >= 0) profileLibrary[existingIndex] = cloneProfile(activeProfile);
+    else profileLibrary.unshift(cloneProfile(activeProfile));
+    saveProfileLibrary();
+    saveActiveProfile();
+    renderSavedProfiles();
+    toast('Profile saved', activeProfile.name);
+  }
+
+  // ─── Captions and journal ───
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const captionLanguageOptions = [
+    { code: 'en-US', label: 'English' },
+    { code: 'en-GB', label: 'English (UK)' },
+    { code: 'en-AU', label: 'English (AU)' }
+  ];
+  const JOURNAL_FILTERS = ['all', 'speech', 'noise', 'ambient', 'mixed', 'scene', 'captions'];
+
+  const captionsState = {
+    recognition: null,
+    listening: false,
+    shouldRestart: false,
+    interim: '',
+    segments: [],
+    autoSave: true,
+    speakerLabels: true,
+    languageIndex: 0,
+    confidence: 0,
+    startedAt: null,
+    currentSpeakerIndex: 1,
+    lastFinalAt: 0,
+    lastSavedText: '',
+    lastSavedAt: 0
+  };
+
+  const journalState = {
+    range: 'day',
+    filter: 'all',
+    samples: [],
+    records: seedJournalRecords(),
+    savedCaptions: [],
+    lastTelemetrySecond: null,
+    lastAutoEventAt: {},
+    lastRenderedAt: 0
+  };
+
+  window.clearEarCaptions = captionsState;
+  window.clearEarJournal = journalState;
+
+  function seedJournalRecords() {
+    const now = Date.now();
+    const hoursAgo = function (hours) { return now - (hours * 60 * 60 * 1000); };
+    const daysAgo = function (days) { return now - (days * 24 * 60 * 60 * 1000); };
+    return [
+      { id: 'seed-1', ts: hoursAgo(1), kind: 'noise', tag: 'noise', name: 'Morning commute', meta: 'Subway platform · peak exposure', db: 91, preset: 'Outdoor', durationMin: 18 },
+      { id: 'seed-2', ts: hoursAgo(3), kind: 'speech', tag: 'speech', name: 'Office conversation', meta: 'Speech focus active · clarity 96%', db: 62, preset: 'Crowded place', durationMin: 22 },
+      { id: 'seed-3', ts: hoursAgo(5), kind: 'mixed', tag: 'mixed', name: 'Coffee break', meta: 'Music + chatter detected', db: 71, preset: 'Quiet space', durationMin: 12 },
+      { id: 'seed-4', ts: hoursAgo(7), kind: 'speech', tag: 'speech', name: 'Lunch with Sam', meta: 'Crowded place preset · 42 min', db: 74, preset: 'Crowded place', durationMin: 42 },
+      { id: 'seed-5', ts: hoursAgo(10), kind: 'noise', tag: 'noise', name: 'Construction noise', meta: 'Outside window · NC maxed', db: 87, preset: 'Outdoor', durationMin: 10 },
+      { id: 'seed-6', ts: hoursAgo(12), kind: 'scene', tag: 'scene', name: 'Auto switch', meta: 'Switched to Quiet space', db: 48, preset: 'Quiet space', durationMin: 0, auto: true },
+      { id: 'seed-7', ts: daysAgo(1), kind: 'speech', tag: 'speech', name: 'Phone call', meta: 'Mom · 18 min · clarity 98%', db: 60, preset: 'Phone call', durationMin: 18 },
+      { id: 'seed-8', ts: daysAgo(3), kind: 'scene', tag: 'scene', name: 'Lecture hall', meta: 'Manual preset change', db: 63, preset: 'Lecture hall', durationMin: 0, auto: false },
+      { id: 'seed-9', ts: daysAgo(4), kind: 'ambient', tag: 'ambient', name: 'Quiet work', meta: 'Focus mode active', db: 48, preset: 'Quiet space', durationMin: 80 },
+      { id: 'seed-10', ts: daysAgo(7), kind: 'noise', tag: 'noise', name: 'Concert', meta: 'Music venue exposure', db: 94, preset: 'Music', durationMin: 120 },
+      { id: 'seed-11', ts: daysAgo(12), kind: 'speech', tag: 'speech', name: 'Dinner conversation', meta: 'Restaurant preset · saved caption', db: 78, preset: 'Restaurant', durationMin: 34 },
+      { id: 'seed-12', ts: daysAgo(18), kind: 'scene', tag: 'scene', name: 'Sleep preset', meta: 'Night mode activated', db: 36, preset: 'Sleep', durationMin: 0, auto: false }
+    ];
+  }
+
+  function createId(prefix) {
+    return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function formatClock(date) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function formatRelativeTime(ts) {
+    const now = Date.now();
+    const diff = now - ts;
+    const minute = 60 * 1000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+    if (diff < hour) return Math.max(1, Math.round(diff / minute)) + 'm ago';
+    if (diff < day) return Math.max(1, Math.round(diff / hour)) + 'h ago';
+    return Math.max(1, Math.round(diff / day)) + 'd ago';
+  }
+
+  function formatDuration(ms) {
+    const totalSeconds = Math.max(0, Math.round(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return minutes + ':' + seconds.toString().padStart(2, '0');
+  }
+
+  function formatHours(hours) {
+    return (Math.round(hours * 10) / 10).toFixed(1);
+  }
+
+  function getJournalRangeMs(range) {
+    if (range === 'week') return 7 * 24 * 60 * 60 * 1000;
+    if (range === 'month') return 30 * 24 * 60 * 60 * 1000;
+    return 24 * 60 * 60 * 1000;
+  }
+
+  function getRangeStart(range) {
+    return Date.now() - getJournalRangeMs(range);
+  }
+
+  function matchesJournalFilter(record) {
+    if (journalState.filter === 'all') return true;
+    if (journalState.filter === 'captions') return record.kind === 'caption';
+    return record.tag === journalState.filter || record.kind === journalState.filter;
+  }
+
+  function getVisibleRecords() {
+    const start = getRangeStart(journalState.range);
+    return journalState.records.filter(function (record) {
+      return record.ts >= start && matchesJournalFilter(record);
+    }).sort(function (a, b) {
+      return b.ts - a.ts;
+    });
+  }
+
+  function getVisibleSamples() {
+    const start = getRangeStart(journalState.range);
+    return journalState.samples.filter(function (sample) {
+      return sample.ts >= start;
+    });
+  }
+
+  function addJournalEvent(entry) {
+    const record = {
+      id: entry.id || createId('event'),
+      ts: entry.ts || Date.now(),
+      kind: entry.kind || 'noise',
+      tag: entry.tag || entry.kind || 'ambient',
+      name: entry.name || 'Event',
+      meta: entry.meta || '',
+      db: typeof entry.db === 'number' ? entry.db : state.db,
+      preset: entry.preset || state.preset,
+      durationMin: typeof entry.durationMin === 'number' ? entry.durationMin : 0,
+      auto: !!entry.auto
+    };
+    journalState.records.unshift(record);
+    if (journalState.records.length > 250) journalState.records.length = 250;
+    if (state.screen === 'journal') renderJournal();
+    return record;
+  }
+
+  function saveCaptionSegment(text, speaker, confidence) {
+    const cleaned = (text || '').trim();
+    if (!cleaned) return;
+    const now = Date.now();
+    if (journalState.savedCaptions.length && journalState.savedCaptions[0].text === cleaned && now - journalState.savedCaptions[0].ts < 3000) return;
+
+    const saved = {
+      id: createId('caption'),
+      ts: now,
+      speaker: speaker,
+      text: cleaned,
+      confidence: typeof confidence === 'number' ? confidence : captionsState.confidence,
+      db: state.db
+    };
+    journalState.savedCaptions.unshift(saved);
+    if (journalState.savedCaptions.length > 8) journalState.savedCaptions.length = 8;
+    addJournalEvent({
+      kind: 'caption',
+      tag: 'captions',
+      name: speaker + ' caption',
+      meta: cleaned.slice(0, 72),
+      db: state.db,
+      durationMin: 0
+    });
+    renderRecentSaves();
+  }
+
+  function updateCaptionControls() {
+    const languageButton = document.getElementById('caption-language-btn');
+    if (languageButton) languageButton.innerHTML = '<i data-lucide="globe" style="width:14px;height:14px"></i> ' + captionLanguageOptions[captionsState.languageIndex].label;
+
+    const autoSaveToggle = document.getElementById('caption-auto-save-toggle');
+    if (autoSaveToggle) autoSaveToggle.classList.toggle('on', captionsState.autoSave);
+    const labelsToggle = document.getElementById('caption-speaker-labels-toggle');
+    if (labelsToggle) labelsToggle.classList.toggle('on', captionsState.speakerLabels);
+  }
+
+  function updateCaptionStats() {
+    const durationEl = document.getElementById('caption-duration');
+    const speakersEl = document.getElementById('caption-speakers');
+    const confidenceEl = document.getElementById('caption-confidence');
+    if (durationEl) {
+      const start = captionsState.startedAt || (captionsState.segments.length ? captionsState.segments[0].ts : null);
+      durationEl.textContent = start ? formatDuration(Date.now() - start) : '0:00';
+    }
+    if (speakersEl) {
+      const speakers = captionsState.speakerLabels ? new Set(captionsState.segments.map(function (segment) { return segment.speaker; })).size : 1;
+      speakersEl.textContent = Math.max(1, speakers).toString();
+    }
+    if (confidenceEl) confidenceEl.textContent = Math.round(captionsState.confidence * 100) + '%';
+  }
+
+  function renderRecentSaves() {
+    const wrap = document.getElementById('recent-saves-list');
+    if (!wrap) return;
+    if (!journalState.savedCaptions.length) {
+      wrap.innerHTML = '<div class="suggestion" style="cursor:default;opacity:.75">No saved captions yet</div>';
+      return;
+    }
+    wrap.innerHTML = journalState.savedCaptions.map(function (item) {
+      return '<div class="suggestion" data-caption-id="' + item.id + '">' +
+        escapeHtml(item.speaker + ' · ' + item.text) +
+        '<div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted);margin-top:4px">' + formatRelativeTime(item.ts) + '</div>' +
+      '</div>';
+    }).join('');
+    wrap.querySelectorAll('[data-caption-id]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        goto('captions');
+        toast('Saved caption', 'Opened saved caption history');
+      });
+    });
+  }
+
+  function renderCaptions() {
+    const wrap = document.getElementById('captions-content');
+    const status = document.getElementById('captions-status-text');
+    if (!wrap) return;
+
+    const segments = captionsState.segments.slice(-5).map(function (segment) {
+      return '<div class="caption-segment">' +
+        '<div class="caption-speaker">' + escapeHtml(segment.speaker + ' · ' + formatRelativeTime(segment.ts)) + '</div>' +
+        '<div class="captions-text">' + escapeHtml(segment.text) + '</div>' +
+      '</div>';
+    }).join('');
+
+    const liveSpeaker = captionsState.speakerLabels ? ('Speaker ' + captionsState.currentSpeakerIndex) : 'Live';
+    const liveText = captionsState.interim.trim();
+    const liveBlock = captionsState.listening || liveText ? (
+      '<div class="caption-segment live">' +
+        '<div class="caption-speaker">' + escapeHtml(liveSpeaker + ' · now') + '</div>' +
+        '<div class="captions-text" id="live-caption">' + escapeHtml(liveText || (captionsState.listening ? 'Listening for speech…' : 'Tap the mic to start captions.')) + (liveText || captionsState.listening ? '<span class="caption-cursor"></span>' : '') + '</div>' +
+      '</div>'
+    ) : '';
+
+    wrap.innerHTML = segments + liveBlock || '<div class="caption-segment live"><div class="caption-speaker">Ready</div><div class="captions-text" id="live-caption">Tap the mic to start captions.<span class="caption-cursor"></span></div></div>';
+
+    if (status) {
+      if (!SpeechRecognition) status.textContent = 'Speech recognition unavailable';
+      else if (captionsState.listening) status.textContent = 'Transcribing live';
+      else if (captionsState.segments.length) status.textContent = 'Captions paused';
+      else status.textContent = 'Waiting for microphone';
+    }
+    updateCaptionStats();
+    updateCaptionControls();
+    lucide.createIcons();
+  }
+
+  function setCaptionLanguage(index) {
+    captionsState.languageIndex = (index + captionLanguageOptions.length) % captionLanguageOptions.length;
+    if (captionsState.recognition) captionsState.recognition.lang = captionLanguageOptions[captionsState.languageIndex].code;
+    updateCaptionControls();
+    toast('Caption language', captionLanguageOptions[captionsState.languageIndex].label);
+    if (captionsState.listening) {
+      stopCaptionsRecognition();
+      startCaptionsRecognition();
+    }
+  }
+
+  function createRecognition() {
+    if (!SpeechRecognition) return null;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.lang = captionLanguageOptions[captionsState.languageIndex].code;
+    recognition.onstart = function () {
+      captionsState.listening = true;
+      captionsState.startedAt = captionsState.startedAt || Date.now();
+      document.getElementById('captions-status-text').textContent = 'Transcribing live';
+      renderCaptions();
+    };
+    recognition.onresult = function (event) {
+      let interim = '';
+      let finalConfidence = captionsState.confidence;
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const text = result[0].transcript.trim();
+        if (!text) continue;
+        if (result.isFinal) {
+          finalConfidence = result[0].confidence || finalConfidence;
+          const now = Date.now();
+          if (now - captionsState.lastFinalAt > 2500) captionsState.currentSpeakerIndex = captionsState.currentSpeakerIndex % 3 + 1;
+          captionsState.lastFinalAt = now;
+          const speaker = captionsState.speakerLabels ? 'Speaker ' + captionsState.currentSpeakerIndex : 'Live';
+          captionsState.segments.push({
+            id: createId('segment'),
+            ts: now,
+            speaker: speaker,
+            text: text,
+            confidence: result[0].confidence || 0.6
+          });
+          if (captionsState.segments.length > 30) captionsState.segments.shift();
+          if (captionsState.autoSave) saveCaptionSegment(text, speaker, result[0].confidence || 0.6);
+        } else {
+          interim = text;
+        }
+      }
+      captionsState.interim = interim;
+      captionsState.confidence = finalConfidence;
+      renderCaptions();
+    };
+    recognition.onerror = function (event) {
+      captionsState.listening = false;
+      captionsState.shouldRestart = false;
+      captionsState.interim = '';
+      const status = document.getElementById('captions-status-text');
+      if (status) status.textContent = 'Captions error';
+      renderCaptions();
+      toast('Captions paused', event.error || 'Speech recognition unavailable');
+    };
+    recognition.onend = function () {
+      captionsState.listening = false;
+      renderCaptions();
+      if (captionsState.shouldRestart && state.power) {
+        window.setTimeout(function () {
+          if (!captionsState.shouldRestart || !state.power) return;
+          try {
+            recognition.start();
+          } catch (err) {
+            // ignore restart race
+          }
+        }, 250);
+      }
+    };
+    return recognition;
+  }
+
+  function startCaptionsRecognition() {
+    if (!SpeechRecognition) {
+      const status = document.getElementById('captions-status-text');
+      if (status) status.textContent = 'Speech recognition unavailable';
+      return false;
+    }
+    captionsState.shouldRestart = true;
+    if (!captionsState.recognition) captionsState.recognition = createRecognition();
+    if (!captionsState.recognition) return false;
+    captionsState.recognition.lang = captionLanguageOptions[captionsState.languageIndex].code;
+    try {
+      captionsState.recognition.start();
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function stopCaptionsRecognition() {
+    captionsState.shouldRestart = false;
+    captionsState.listening = false;
+    captionsState.interim = '';
+    if (captionsState.recognition) {
+      try {
+        captionsState.recognition.stop();
+      } catch (err) {
+        // ignore stop race
+      }
+    }
+    renderCaptions();
+  }
+
+  function handleAudioTelemetry(metrics) {
+    const second = Math.floor(metrics.timestamp / 1000);
+    const sample = {
+      ts: metrics.timestamp,
+      db: metrics.db,
+      speechDetected: !!metrics.speechDetected,
+      preset: metrics.preset
+    };
+
+    if (journalState.lastTelemetrySecond !== second) {
+      journalState.lastTelemetrySecond = second;
+      journalState.samples.push(sample);
+      if (journalState.samples.length > 24 * 60 * 6) journalState.samples.shift();
+
+      const previous = journalState.samples.length > 1 ? journalState.samples[journalState.samples.length - 2] : null;
+      if (sample.speechDetected && (!previous || !previous.speechDetected)) {
+        maybeAutoJournalEvent('speech', 'Speech detected', 'Clarity boosted in ' + sample.preset, sample.db, 'speech', 30000);
+      }
+      if (sample.db >= 85 && (!previous || previous.db < 85)) {
+        maybeAutoJournalEvent('noise', 'Noise spike', 'Peak exposure in ' + sample.preset, sample.db, 'noise', 60000);
+      }
+      if (state.sceneAutoDetect) {
+        const suggested = suggestSceneFromTelemetry(sample);
+        const current = getSceneById(sceneCatalog.find(function (scene) { return scene.name === state.preset; }) ? sceneCatalog.find(function (scene) { return scene.name === state.preset; }).id : 'quiet');
+        if (suggested && current && suggested.id !== current.id) {
+          const lastSwitch = journalState.lastAutoEventAt.sceneSwitch || 0;
+          if (metrics.timestamp - lastSwitch > 120000) {
+            journalState.lastAutoEventAt.sceneSwitch = metrics.timestamp;
+            applyScene(suggested, { auto: true });
+          }
+        }
+      }
+      if (state.screen === 'journal') renderJournal();
+    } else if (journalState.samples.length) {
+      journalState.samples[journalState.samples.length - 1] = sample;
+    }
+  }
+
+  window.clearEarAudioTelemetry = handleAudioTelemetry;
+
+  function maybeAutoJournalEvent(kind, name, meta, db, tag, cooldownMs) {
+    const now = Date.now();
+    if (journalState.lastAutoEventAt[kind] && now - journalState.lastAutoEventAt[kind] < cooldownMs) return;
+    journalState.lastAutoEventAt[kind] = now;
+    addJournalEvent({
+      kind: kind,
+      tag: tag,
+      name: name,
+      meta: meta,
+      db: db,
+      auto: true
+    });
+  }
+
+  function computeJournalSummary() {
+    const samples = getVisibleSamples();
+    const records = getVisibleRecords();
+    const dbValues = samples.map(function (sample) { return sample.db; }).concat(records.filter(function (record) { return typeof record.db === 'number'; }).map(function (record) { return record.db; }));
+    const avg = dbValues.length ? dbValues.reduce(function (sum, value) { return sum + value; }, 0) / dbValues.length : 0;
+
+    let peak = null;
+    samples.concat(records).forEach(function (entry) {
+      if (typeof entry.db !== 'number') return;
+      if (!peak || entry.db > peak.db) peak = entry;
+    });
+
+    const speechSeconds = samples.filter(function (sample) { return sample.speechDetected; }).length / 30;
+    const speechHours = speechSeconds / 3600;
+    const uniqueScenes = new Set(records.filter(function (record) { return record.kind === 'scene' && record.preset; }).map(function (record) { return record.preset; })).size;
+    const autoScenes = records.filter(function (record) { return record.kind === 'scene' && record.auto; }).length;
+
+    return {
+      avg: avg,
+      peak: peak,
+      speechHours: speechHours,
+      uniqueScenes: uniqueScenes,
+      autoScenes: autoScenes,
+      samples: samples,
+      records: records
+    };
+  }
+
+  function renderJournalSummary() {
+    const summary = computeJournalSummary();
+    const rangeLabel = journalState.range === 'day' ? 'Today' : journalState.range === 'week' ? 'This week' : 'This month';
+    const subtitle = document.getElementById('journal-subtitle');
+    if (subtitle) subtitle.textContent = rangeLabel + ' · ' + summary.records.length + ' events';
+
+    const avgEl = document.getElementById('journal-avg-exposure');
+    const peakEl = document.getElementById('journal-peak-exposure');
+    const speechEl = document.getElementById('journal-speech-hours');
+    const scenesEl = document.getElementById('journal-scenes-used');
+    const avgNote = document.getElementById('journal-avg-note');
+    const peakNote = document.getElementById('journal-peak-note');
+    const speechNote = document.getElementById('journal-speech-note');
+    const scenesNote = document.getElementById('journal-scenes-note');
+
+    if (avgEl) avgEl.innerHTML = Math.round(summary.avg || 0) + '<span class="stat-value-unit">dB</span>';
+    if (peakEl) peakEl.innerHTML = (summary.peak ? Math.round(summary.peak.db) : '--') + '<span class="stat-value-unit">dB</span>';
+    if (speechEl) speechEl.innerHTML = formatHours(summary.speechHours) + '<span class="stat-value-unit">hrs</span>';
+    if (scenesEl) scenesEl.textContent = summary.uniqueScenes.toString();
+
+    if (avgNote) avgNote.textContent = summary.avg < 65 ? 'Within healthy range' : summary.avg < 80 ? 'Moderate exposure' : 'High exposure today';
+    if (peakNote) peakNote.textContent = summary.peak ? '↗ ' + summary.peak.name : 'No peaks yet';
+    if (speechNote) speechNote.textContent = summary.speechHours > 0 ? 'Tracked speech in real time' : 'No speech tracked';
+    if (scenesNote) scenesNote.textContent = summary.autoScenes + ' auto-switched';
+  }
+
+  function renderEvents() {
+    const list = document.getElementById('events-list');
+    if (!list) return;
+    const records = getVisibleRecords();
+    if (!records.length) {
+      list.innerHTML = '<div class="suggestion" style="cursor:default;opacity:.75">No events in this range</div>';
+      return;
+    }
+
+    list.innerHTML = records.map(function (record) {
+      const levelClass = record.db >= 90 ? 'peak' : record.db >= 70 ? 'high' : '';
+      return '<div class="event-row" data-event-id="' + record.id + '">' +
+        '<div class="event-time">' + escapeHtml(formatRelativeTime(record.ts)) + '</div>' +
+        '<div>' +
+          '<div class="event-name">' + escapeHtml(record.name) + '</div>' +
+          '<div class="event-meta">' + escapeHtml(record.meta) + '</div>' +
+        '</div>' +
+        '<div class="event-db ' + levelClass + '">' + Math.round(record.db) + ' dB</div>' +
+        '<div class="event-tag">' + escapeHtml(record.tag) + '</div>' +
+      '</div>';
+    }).join('');
+
+    list.querySelectorAll('[data-event-id]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        const eventId = row.getAttribute('data-event-id');
+        const record = journalState.records.find(function (item) { return item.id === eventId; });
+        if (!record) return;
+        toast(record.name, record.meta);
+      });
+    });
+  }
+
+  function buildTimelineBuckets() {
+    const rangeMs = getJournalRangeMs(journalState.range);
+    const bucketCount = journalState.range === 'day' ? 24 : journalState.range === 'week' ? 7 : 30;
+    const bucketMs = rangeMs / bucketCount;
+    const start = Date.now() - rangeMs;
+    const buckets = [];
+    for (let i = 0; i < bucketCount; i++) {
+      buckets.push({ sum: 0, count: 0, peak: 0 });
+    }
+
+    function pushValue(ts, db) {
+      if (ts < start || typeof db !== 'number') return;
+      const idx = Math.min(bucketCount - 1, Math.max(0, Math.floor((ts - start) / bucketMs)));
+      buckets[idx].sum += db;
+      buckets[idx].count += 1;
+      buckets[idx].peak = Math.max(buckets[idx].peak, db);
+    }
+
+    journalState.samples.forEach(function (sample) { pushValue(sample.ts, sample.db); });
+    journalState.records.forEach(function (record) { pushValue(record.ts, record.db); });
+    return buckets;
+  }
+
+  function updateTimelineLabels() {
+    const labels = document.querySelectorAll('.timeline-labels span');
+    if (!labels.length) return;
+    const now = new Date();
+    const texts = [];
+    if (journalState.range === 'day') {
+      texts.push('12am', '4am', '8am', '12pm', '4pm', '8pm');
+    } else if (journalState.range === 'week') {
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        texts.push(date.toLocaleDateString([], { weekday: 'short' }));
+      }
+    } else {
+      texts.push('1', '6', '11', '16', '21', '30');
+    }
+    labels.forEach(function (label, index) {
+      label.textContent = texts[index] || label.textContent;
+    });
+  }
+
+  function drawTimeline() {
+    const w = timeCanvas.width, h = timeCanvas.height;
+    timeCtx.clearRect(0, 0, w, h);
+
+    const buckets = buildTimelineBuckets();
+    const padding = 20;
+    const maxDb = 100;
+    const barW = w / buckets.length;
+
+    timeCtx.fillStyle = 'rgba(248, 113, 113, 0.05)';
+    const warnY = h - padding - (85 / maxDb) * (h - padding * 2);
+    timeCtx.fillRect(0, 0, w, warnY);
+    timeCtx.strokeStyle = 'rgba(248, 113, 113, 0.2)';
+    timeCtx.setLineDash([4, 4]);
+    timeCtx.beginPath();
+    timeCtx.moveTo(0, warnY);
+    timeCtx.lineTo(w, warnY);
+    timeCtx.stroke();
+    timeCtx.setLineDash([]);
+
+    buckets.forEach(function (bucket, index) {
+      const average = bucket.count ? bucket.sum / bucket.count : 0;
+      const value = bucket.count ? Math.max(average, bucket.peak) : 0;
+      const barH = (value / maxDb) * (h - padding * 2);
+      const y = h - padding - barH;
+      const color = value > 85 ? 'rgba(248, 113, 113, 0.8)' : value > 70 ? 'rgba(251, 191, 36, 0.7)' : 'rgba(217, 249, 157, 0.65)';
+      timeCtx.fillStyle = color;
+      timeCtx.fillRect(index * barW + 1, y, Math.max(1, barW - 1), barH);
+    });
+    updateTimelineLabels();
+  }
+
+  function renderJournal() {
+    renderJournalSummary();
+    renderEvents();
+    renderRecentSaves();
+    drawTimeline();
+    journalState.lastRenderedAt = Date.now();
+
+    const rangeButtons = document.querySelectorAll('.header-actions .btn[data-range]');
+    rangeButtons.forEach(function (button) {
+      button.classList.toggle('btn-primary', button.dataset.range === journalState.range);
+    });
+    const filterButton = document.getElementById('journal-filter-btn');
+    if (filterButton) {
+      const label = journalState.filter === 'all' ? 'All' : journalState.filter === 'captions' ? 'Saved captions' : journalState.filter.charAt(0).toUpperCase() + journalState.filter.slice(1);
+      filterButton.innerHTML = '<i data-lucide="filter" style="width:13px;height:13px"></i> ' + label;
+      lucide.createIcons();
+    }
+  }
+
+  function setJournalRange(range) {
+    journalState.range = range;
+    renderJournal();
+  }
+
+  function cycleJournalFilter() {
+    const index = JOURNAL_FILTERS.indexOf(journalState.filter);
+    journalState.filter = JOURNAL_FILTERS[(index + 1) % JOURNAL_FILTERS.length];
+    renderJournal();
+    toast('Journal filter', journalState.filter === 'all' ? 'Showing all events' : 'Showing ' + journalState.filter + ' events');
+  }
+
+  document.querySelectorAll('[data-range]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      setJournalRange(button.dataset.range);
+    });
+  });
+
+  document.getElementById('tune-reset-btn').addEventListener('click', resetTuneProfile);
+  document.getElementById('tune-save-btn').addEventListener('click', saveCurrentProfile);
+  document.getElementById('hearing-test-btn').addEventListener('click', openHearingTest);
+  document.getElementById('scene-autodetect-btn').addEventListener('click', function () {
+    state.sceneAutoDetect = !state.sceneAutoDetect;
+    const button = document.getElementById('scene-autodetect-btn');
+    button.classList.toggle('btn-primary', state.sceneAutoDetect);
+    toast('Auto-detect', state.sceneAutoDetect ? 'Enabled' : 'Disabled');
+  });
+  document.getElementById('scene-new-btn').addEventListener('click', createCustomScene);
+  document.getElementById('journal-filter-btn').addEventListener('click', cycleJournalFilter);
+  document.getElementById('caption-language-btn').addEventListener('click', function () {
+    setCaptionLanguage(captionsState.languageIndex + 1);
+  });
+  document.getElementById('caption-save-btn').addEventListener('click', function () {
+    const latest = captionsState.interim.trim() || (captionsState.segments.length ? captionsState.segments[captionsState.segments.length - 1].text : '');
+    if (!latest) {
+      toast('No caption yet', 'Start speaking to save a caption');
+      return;
+    }
+    const speaker = captionsState.speakerLabels ? 'Speaker ' + captionsState.currentSpeakerIndex : 'Live';
+    saveCaptionSegment(latest, speaker, captionsState.confidence);
+    toast('Caption saved', latest.slice(0, 60));
+  });
+  document.getElementById('caption-auto-save-toggle').addEventListener('click', function () {
+    captionsState.autoSave = !captionsState.autoSave;
+    updateCaptionControls();
+    toast('Auto-save', captionsState.autoSave ? 'Captions will save automatically' : 'Manual save only');
+  });
+  document.getElementById('caption-speaker-labels-toggle').addEventListener('click', function () {
+    captionsState.speakerLabels = !captionsState.speakerLabels;
+    updateCaptionControls();
+    renderCaptions();
+  });
+  document.querySelector('.mic-btn').addEventListener('click', function () {
+    if (captionsState.listening) {
+      stopCaptionsRecognition();
+      toast('Captions paused', 'Live transcription stopped');
+    } else {
+      if (startCaptionsRecognition()) toast('Captions live', 'Listening for speech now');
+    }
+  });
+
+  document.getElementById('hearing-test-close-btn').addEventListener('click', closeHearingTest);
+  document.getElementById('hearing-test-play-btn').addEventListener('click', playTestTone);
+  document.getElementById('hearing-test-too-quiet-btn').addEventListener('click', function () {
+    const slider = document.getElementById('hearing-test-slider');
+    slider.value = clamp(Number(slider.value || 0) + 2, -12, 12);
+    hearingTestState.responses[hearingTestState.index] = Number(slider.value);
+    playTestTone();
+  });
+  document.getElementById('hearing-test-just-right-btn').addEventListener('click', commitHearingStep);
+  document.getElementById('hearing-test-too-loud-btn').addEventListener('click', function () {
+    const slider = document.getElementById('hearing-test-slider');
+    slider.value = clamp(Number(slider.value || 0) - 2, -12, 12);
+    hearingTestState.responses[hearingTestState.index] = Number(slider.value);
+    playTestTone();
+  });
+  document.getElementById('hearing-test-next-btn').addEventListener('click', commitHearingStep);
+  document.getElementById('hearing-test-finish-btn').addEventListener('click', finishHearingTest);
+  document.getElementById('hearing-test-slider').addEventListener('input', function (e) {
+    hearingTestState.responses[hearingTestState.index] = Number(e.target.value);
+    if (hearingTestState.open) playTestTone();
+  });
+  document.getElementById('hearing-test-modal').addEventListener('click', function (e) {
+    if (e.target.id === 'hearing-test-modal') closeHearingTest();
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && hearingTestState.open) closeHearingTest();
+  });
 
   // ─────────────────────────────────────────
   //  AI ASSISTANT BACKEND
@@ -2258,10 +3391,10 @@ You: "Restaurants are tough because of all the hard surfaces bouncing sound arou
     c.addEventListener('click', () => {
       const ctrl = c.dataset.control;
       state.controls[ctrl] = !state.controls[ctrl];
-      c.classList.toggle('on', state.controls[ctrl]);
-      const val = c.querySelector('.vis-control-value');
-      if (ctrl === 'cancel') val.textContent = state.controls[ctrl] ? 'High' : 'Off';
-      else val.textContent = state.controls[ctrl] ? 'On' : 'Off';
+      syncControlButtons();
+      if (window.audioEngine && typeof window.audioEngine.applyControls === 'function') {
+        window.audioEngine.applyControls(state.controls);
+      }
     });
   });
 
@@ -2270,6 +3403,17 @@ You: "Restaurants are tough because of all the hard surfaces bouncing sound arou
     state.power = !state.power;
     e.target.classList.toggle('on', state.power);
     toast(state.power ? 'ClearEar activated' : 'ClearEar paused', state.power ? 'Processing live audio' : 'Audio passes through unchanged');
+    if (state.power) {
+      if (window.audioEngine && typeof window.audioEngine.start === 'function') {
+        window.audioEngine.start().catch(function () {});
+      }
+      startCaptionsRecognition();
+    } else {
+      if (window.audioEngine && typeof window.audioEngine.stop === 'function') {
+        window.audioEngine.stop();
+      }
+      stopCaptionsRecognition();
+    }
   });
 
   // ─── Animation loop ───
@@ -2285,14 +3429,33 @@ You: "Restaurants are tough because of all the hard surfaces bouncing sound arou
   renderScenes();
   renderEQ();
   renderChat();
-  renderEvents();
+  renderJournal();
+  renderCaptions();
+  updateTuneUI();
+  syncControlButtons();
+  window.clearEarSceneConfig = getSceneById(sceneCatalog.find(function (scene) { return scene.name === state.preset; }) ? sceneCatalog.find(function (scene) { return scene.name === state.preset; }).id : 'quiet');
+  const autoSceneButton = document.getElementById('scene-autodetect-btn');
+  if (autoSceneButton) autoSceneButton.classList.toggle('btn-primary', state.sceneAutoDetect);
   drawAudiogram();
-  drawTimeline();
   requestAnimationFrame(animate);
   lucide.createIcons();
+
+  if (state.power) {
+    window.setTimeout(function () {
+      startCaptionsRecognition();
+    }, 250);
+  }
+
+  window.addEventListener('pointerdown', function () {
+    if (!state.power) return;
+    if (window.audioEngine && typeof window.audioEngine.start === 'function') {
+      window.audioEngine.start().catch(function () {});
+    }
+  }, { once: true });
 
   // Auto-toast on load to show it works
   setTimeout(() => toast('Connected', 'AirPods Pro · audio processing active'), 800);
 </script>
+<script src="audio-engine.js"></script>
 </body>
 </html>
