@@ -492,7 +492,7 @@ class ClearEarHandler(SimpleHTTPRequestHandler):
 def main():
     load_env(ROOT / ".env", override=True)
     host = os.environ.get("HOST", "127.0.0.1")
-    port = int(os.environ.get("PORT", "5173"))
+    port = int(os.environ.get("PORT", "8000"))
 
     server = ThreadingHTTPServer((host, port), ClearEarHandler)
     print(f"ClearEar running at http://localhost:{port}")

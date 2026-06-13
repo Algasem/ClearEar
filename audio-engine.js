@@ -46,11 +46,15 @@
   let dbSmooth = 35;
 
   // ─── Circular audio buffer (last ~65 seconds) ───
+  // Uses MediaRecorder for reliable capture independent of Web Audio graph
   const BUFFER_DURATION_SEC = 65;
   let ringBuffer = null;
   let ringBufferLength = 0;
   let ringWritePos = 0;
   let ringSampleRate = 48000;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let recordingStartTime = 0;
 
   function initRingBuffer(sampleRate) {
     ringSampleRate = sampleRate;
@@ -67,30 +71,90 @@
     }
   }
 
-  function getPlaybackBuffer(seconds) {
-    if (!ringBuffer) return null;
-    const requestedSamples = Math.min(Math.ceil(seconds * ringSampleRate), ringBufferLength);
-    const out = new Float32Array(requestedSamples);
-    let readPos = (ringWritePos - requestedSamples + ringBufferLength) % ringBufferLength;
-    for (let i = 0; i < requestedSamples; i++) {
-      out[i] = ringBuffer[readPos];
-      readPos = (readPos + 1) % ringBufferLength;
+  // Start a MediaRecorder to capture raw audio chunks
+  function startMediaRecorder(mediaStream) {
+    if (mediaRecorder) return;
+    try {
+      mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'audio/webm;codecs=opus' });
+    } catch (e) {
+      try { mediaRecorder = new MediaRecorder(mediaStream); } catch (e2) { return; }
     }
-    return { samples: out, sampleRate: ringSampleRate };
+    recordedChunks = [];
+    recordingStartTime = Date.now();
+
+    mediaRecorder.ondataavailable = function(e) {
+      if (e.data && e.data.size > 0) {
+        recordedChunks.push({ blob: e.data, ts: Date.now() });
+        // Keep only last 70 seconds of chunks
+        const cutoff = Date.now() - 70000;
+        while (recordedChunks.length > 0 && recordedChunks[0].ts < cutoff) {
+          recordedChunks.shift();
+        }
+      }
+    };
+
+    mediaRecorder.start(1000); // capture in 1-second chunks
+    console.log('[AudioEngine] MediaRecorder started for playback buffer');
   }
 
-  function playBufferedAudio(seconds) {
-    const data = getPlaybackBuffer(seconds);
-    if (!data || !data.samples.length) return null;
-    const playCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const buffer = playCtx.createBuffer(1, data.samples.length, data.sampleRate);
-    buffer.getChannelData(0).set(data.samples);
-    const source = playCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(playCtx.destination);
-    source.start();
-    source.onended = function () { playCtx.close(); };
-    return { source: source, ctx: playCtx, durationSec: data.samples.length / data.sampleRate };
+  function getPlaybackBuffer(seconds) {
+    // Fallback to ring buffer if it has data
+    if (ringBuffer) {
+      const requestedSamples = Math.min(Math.ceil(seconds * ringSampleRate), ringBufferLength);
+      let hasAudio = false;
+      const checkStart = (ringWritePos - requestedSamples + ringBufferLength) % ringBufferLength;
+      for (let i = 0; i < Math.min(requestedSamples, 5000); i += 50) {
+        if (Math.abs(ringBuffer[(checkStart + i) % ringBufferLength]) > 0.0001) { hasAudio = true; break; }
+      }
+      if (hasAudio) {
+        const out = new Float32Array(requestedSamples);
+        let readPos = (ringWritePos - requestedSamples + ringBufferLength) % ringBufferLength;
+        for (let i = 0; i < requestedSamples; i++) {
+          out[i] = ringBuffer[readPos];
+          readPos = (readPos + 1) % ringBufferLength;
+        }
+        return { samples: out, sampleRate: ringSampleRate };
+      }
+    }
+    return null;
+  }
+
+  async function playBufferedAudio(seconds) {
+    // First try ring buffer
+    const ringData = getPlaybackBuffer(seconds);
+    if (ringData) {
+      console.log('[AudioEngine] Playing from ring buffer:', seconds, 'seconds');
+      const playCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = playCtx.createBuffer(1, ringData.samples.length, ringData.sampleRate);
+      buffer.getChannelData(0).set(ringData.samples);
+      const source = playCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(playCtx.destination);
+      source.start();
+      source.onended = function () { playCtx.close(); };
+      return { source: source, ctx: playCtx, durationSec: ringData.samples.length / ringData.sampleRate };
+    }
+
+    // Fallback: use MediaRecorder chunks
+    if (!recordedChunks.length) {
+      console.log('[AudioEngine] No audio recorded yet');
+      return null;
+    }
+
+    const cutoff = Date.now() - (seconds * 1000);
+    const relevantChunks = recordedChunks.filter(c => c.ts >= cutoff).map(c => c.blob);
+    if (!relevantChunks.length) {
+      console.log('[AudioEngine] No chunks in requested time range');
+      return null;
+    }
+
+    console.log('[AudioEngine] Playing from MediaRecorder chunks:', relevantChunks.length, 'chunks');
+    const blob = new Blob(relevantChunks, { type: relevantChunks[0].type || 'audio/webm' });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play();
+    audio.onended = function() { URL.revokeObjectURL(url); };
+    return { audio: audio, durationSec: seconds };
   }
 
   // ─── End ring buffer ───
@@ -333,6 +397,8 @@
         }
       }
       if (!src) src = ctx.createMediaStreamSource(stream);
+      // Start MediaRecorder for reliable playback buffer
+      startMediaRecorder(stream);
       if (connected) {
         // Already connected but maybe context was just resumed - restart the update interval
         if (!updateInterval) {
@@ -364,9 +430,13 @@
       silenceSink.connect(ctx.destination);
 
       // ScriptProcessor for ring buffer recording and speech detection
+      // Must connect to destination (via silent gain) or onaudioprocess won't fire
       if (!proc._connected) {
+        var procSink = ctx.createGain();
+        procSink.gain.value = 0;
         node.connect(proc);
-        proc.connect(ctx.createGain()); // dummy destination to keep proc alive
+        proc.connect(procSink);
+        procSink.connect(ctx.destination);
         proc._connected = true;
       }
 
@@ -381,7 +451,7 @@
 
       connected = true;
       window.audioEngine.running = true;
-      console.log('[AudioEngine] Connected and running. Sample rate:', ctx.sampleRate);
+      console.log('[AudioEngine] Connected and running. Sample rate:', ctx.sampleRate, 'Ring buffer:', ringBufferLength, 'samples');
     } catch (err) {
       console.warn('Audio start failed:', err);
     }
@@ -481,15 +551,21 @@
   };
 
   const unlock = function () {
-    if (document.getElementById('power-toggle') && document.getElementById('power-toggle').classList.contains('on')) {
-      start();
-    }
+    start().then(function() {
+      console.log('[AudioEngine] Started via user gesture');
+    }).catch(function() {});
     document.removeEventListener('click', unlock);
     document.removeEventListener('keydown', unlock);
   };
   document.addEventListener('click', unlock);
   document.addEventListener('keydown', unlock);
 
-  const powerEl = document.getElementById('power-toggle');
-  if (powerEl && powerEl.classList.contains('on')) start();
+  // Also try to auto-start once DOM is ready
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(function() { start().catch(function(){}); }, 100);
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() { start().catch(function(){}); }, 100);
+    });
+  }
 })();
