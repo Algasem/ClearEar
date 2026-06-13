@@ -1209,28 +1209,71 @@ function createBackgroundRecognition() {
 
       // ─── CONVERSATION MODE: route all results to voice handler ───
       if (voiceMode.inConversation) {
-        // Only process final results (ignore interim to avoid other people's speech)
+        // Check for "stop talking" command (works on interim for fast response)
+        const lower = text.toLowerCase();
+        if (lower.includes('stop talking') || lower.includes('stop speaking') || lower.includes('shut up') || lower.includes('be quiet') || lower.includes('stop please')) {
+          if (voiceMode.speaking) {
+            interruptSpeech();
+            toast('Speech stopped');
+          }
+          continue; // Don't accumulate stop commands as queries
+        }
+
+        // ANY speech (even interim) means user is active - reset silence timer
+        voiceMode.lastSpeechAt = Date.now();
+        clearTimeout(voiceMode.silenceTimer);
+        voiceMode.silenceTimer = setTimeout(() => {
+          if (voiceMode.speaking) { setTimeout(() => resetSilenceTimer(), 2000); return; }
+          if (voiceMode.accumulatedText.trim()) {
+            const t = voiceMode.accumulatedText.trim();
+            voiceMode.accumulatedText = '';
+            processUserUtterance(t);
+          } else {
+            endConversationMode();
+            playChime('sleep');
+            showVoiceActive(false);
+          }
+        }, voiceMode.SILENCE_TIMEOUT);
+
+        // Only accumulate final results and trigger the sentence timer
         if (result.isFinal) {
-          voiceMode.lastSpeechAt = Date.now();
           voiceMode.accumulatedText += ' ' + text;
           console.log('[ClearEar] Voice accumulated:', voiceMode.accumulatedText.trim());
-          resetSilenceTimer();
+          // Sentence timer: send after 2.5s of no new final results
+          clearTimeout(voiceMode.sentenceTimer);
+          voiceMode.sentenceTimer = setTimeout(() => {
+            if (voiceMode.inConversation && voiceMode.accumulatedText.trim()) {
+              const t = voiceMode.accumulatedText.trim();
+              voiceMode.accumulatedText = '';
+              processUserUtterance(t);
+            }
+          }, 2500);
         }
         continue;
       }
 
       // ─── FOLLOW-UP WINDOW: after AI responds, listen for 5s without wake word ───
-      if (voiceMode.followUpWindow && Date.now() - voiceMode.followUpStart < 5000) {
+      if (voiceMode.followUpWindow) {
         if (result.isFinal && text.length > 2) {
+          // User spoke during follow-up - start new conversation
           voiceMode.followUpWindow = false;
+          clearTimeout(voiceMode.followUpTimeout);
           startConversationMode(text);
           return;
         }
+        // Interim results during follow-up: extend the window since user is talking
+        if (!result.isFinal && text.length > 2) {
+          voiceMode.followUpStart = Date.now(); // reset the clock
+          clearTimeout(voiceMode.followUpTimeout);
+          voiceMode.followUpTimeout = setTimeout(() => {
+            if (voiceMode.followUpWindow) {
+              voiceMode.followUpWindow = false;
+              playChime('sleep');
+              showVoiceActive(false);
+            }
+          }, 5000);
+        }
         continue;
-      } else if (voiceMode.followUpWindow) {
-        voiceMode.followUpWindow = false;
-        playChime('sleep');
-        showVoiceActive(false);
       }
 
       // ─── NORMAL MODE: wake word detection + captions ───
@@ -1655,8 +1698,13 @@ function endConversationMode() {
   clearTimeout(voiceMode.silenceTimer);
   clearTimeout(voiceMode.sentenceTimer);
   setWakeOrbActive(false);
-  // Keep glow on during follow-up window (it turns off with sleep chime)
   console.log('[ClearEar] Conversation ended');
+  // Safety: if glow is still on after 6 seconds and no follow-up started, force it off
+  setTimeout(() => {
+    if (!voiceMode.inConversation && !voiceMode.followUpWindow) {
+      showVoiceActive(false);
+    }
+  }, 6000);
 }
 
 // ─────────────────────────────────────────
@@ -2417,8 +2465,13 @@ document.querySelectorAll('[data-range]').forEach(b => b.addEventListener('click
 
 // Assistant mic button: start conversation mode manually
 document.getElementById('assistant-mic-btn').addEventListener('click', () => {
-  if (voiceMode.inConversation) { endConversationMode(); }
-  else { startConversationMode(); }
+  if (voiceMode.inConversation || voiceMode.followUpWindow) {
+    voiceMode.followUpWindow = false;
+    clearTimeout(voiceMode.followUpTimeout);
+    endConversationMode();
+    playChime('sleep');
+    showVoiceActive(false);
+  } else { startConversationMode(); }
 });
 
 // Assistant text input

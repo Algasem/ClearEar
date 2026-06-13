@@ -31,7 +31,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY_SIZE = 128 * 1024  # bumped for transcripts
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
 SSL_CONTEXT = None
 if certifi:
     SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
@@ -192,6 +192,12 @@ def get_gemini_api_keys():
         os.environ.get("GEMINI_API_KEY_3"),
         os.environ.get("GEMINI_API_KEY_4"),
         os.environ.get("GEMINI_API_KEY_5"),
+        os.environ.get("GEMINI_API_KEY_6"),
+        os.environ.get("GEMINI_API_KEY_7"),
+        os.environ.get("GEMINI_API_KEY_8"),
+        os.environ.get("GEMINI_API_KEY_9"),
+        os.environ.get("GEMINI_API_KEY_10"),
+        os.environ.get("GEMINI_API_KEY_11"),
         os.environ.get("GOOGLE_API_KEY"),
         os.environ.get("GOOGLE_API_KEY_1"),
         os.environ.get("GOOGLE_API_KEY_2"),
