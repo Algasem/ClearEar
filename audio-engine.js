@@ -70,8 +70,16 @@
   const MAX_BAND_GAIN_DB = 18;
   const MAX_BAND_TARGET = 6.0;    // absolute linear ceiling per band (safety)
 
-  // AGC: keep the wearer's (loud, close) own voice from being amplified.
-  const AGC = { thresh: 0.12, slope: 0.85, floor: 0.35 };
+  // Manual amplification controls (two sliders injected into the Live screen):
+  //   manualGainDb      - how much to amplify quiet sounds (dB)
+  //   manualThresholdDb - input level (dB SPL) above which the gain drops to 0 dB,
+  //                       so the loudest sounds (your own voice) are not amplified.
+  let manualGainDb = parseFloat(localStorage.getItem('clearear.manualGainDb'));
+  if (isNaN(manualGainDb)) manualGainDb = 12;
+  let manualThresholdDb = parseFloat(localStorage.getItem('clearear.manualThresholdDb'));
+  if (isNaN(manualThresholdDb)) manualThresholdDb = 65;
+  const GATE_KNEE_DB = 4;   // soft transition width just below the threshold
+  let lastBoost = 1;
 
   const proc = { cancel: 0.6, speech: 0.75, transparency: 0.35, name: 'Quiet space' };
 
@@ -97,7 +105,6 @@
   let dbSmooth = 35;
   let noiseFloor = 1e-5;
   let lastSnrDb = 0;
-  let lastAgc = 1;
   for (let i = 0; i < NB; i++) { maxFollow[i] = 0.02; minFollow[i] = 0.02; }
 
   let binCache = null;
@@ -343,18 +350,24 @@
     for (let i = 0; i < t.length; i++) { const v = (t[i] - 128) / 128; sq += v * v; }
     const rms = Math.sqrt(sq / t.length);
 
-    // AGC: duck the loudest input (the wearer's own close-mic voice) so it is
-    // not amplified, while leaving quiet/distant speech at full gain.
-    let agc = 1;
-    if (rms > AGC.thresh) {
-      agc = Math.pow(AGC.thresh / rms, AGC.slope);
-      if (agc < AGC.floor) agc = AGC.floor;
-    }
-    lastAgc = lastAgc * 0.6 + agc * 0.4; // smooth so it never pumps
+    // AGC replaced by the manual gate below.
 
     const dbFs = 20 * Math.log10(Math.max(rms, 1e-8));
     const dbSPL = Math.max(SPL_MIN, Math.min(SPL_MAX, dbFs + SPL_OFFSET));
     dbSmooth = dbSmooth * 0.6 + dbSPL * 0.4;
+
+    // Manual gate: amplify only what is quieter than the threshold. At or above
+    // the threshold the boost is 0 dB (unity), so the loudest sounds (your own
+    // voice) are passed through without amplification.
+    let gateFrac = (manualThresholdDb - dbSmooth) / GATE_KNEE_DB;
+    if (gateFrac < 0) gateFrac = 0; else if (gateFrac > 1) gateFrac = 1;
+    const boostLin = dbToLin(manualGainDb * gateFrac);
+    lastBoost = boostLin;
+    if (masterGain) {
+      const pv = masterGain.gain.value;
+      const tcb = boostLin < pv ? 0.02 : 0.08; // fast to back off, gentle to lift
+      masterGain.gain.setTargetAtTime(boostLin, now, tcb);
+    }
 
     // --- per-band spectrum analysis ---
     const freq = new Uint8Array(binCount);
@@ -428,8 +441,9 @@
         if (comp > 1) comp = 1;
       }
 
-      // (5) combine: prescription × compression × NR × own-voice AGC
-      let target = makeupLin[i] * comp * nr * lastAgc;
+      // (5) combine: prescription × compression × NR. The master-level gate
+      //     (above) handles overall boost vs the loud/quiet threshold.
+      let target = makeupLin[i] * comp * nr;
       if (target < 0) target = 0;
       if (target > MAX_BAND_TARGET) target = MAX_BAND_TARGET;
 
@@ -543,6 +557,61 @@
       window.state.inputDeviceLabel = track.label || window.state.inputDeviceLabel || '';
       try { if (typeof window.updateDeviceStatus === 'function') window.updateDeviceStatus(); } catch (e) {}
     }
+  }
+
+  // ===========================================================================
+  //  AMPLIFICATION SLIDERS  (Gain + Threshold, injected into the Live screen)
+  // ===========================================================================
+  function injectControls(attempt) {
+    attempt = attempt || 0;
+    if (document.getElementById('clearear-amp-panel')) return;
+    const host = document.querySelector('#screen-live .live-right') || document.querySelector('.live-right');
+    if (!host) { if (attempt < 25) setTimeout(function () { injectControls(attempt + 1); }, 400); return; }
+
+    const style = document.createElement('style');
+    style.textContent =
+      '#clearear-amp-panel{display:flex;flex-direction:column;gap:4px;}' +
+      '#clearear-amp-panel .ce-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-secondary);margin-top:10px;}' +
+      '#clearear-amp-panel .ce-val{font-family:var(--font-mono);font-size:11px;color:var(--accent);}' +
+      '#clearear-amp-panel input[type=range]{width:100%;accent-color:var(--accent);height:4px;cursor:pointer;margin-top:6px;}' +
+      '#clearear-amp-panel .ce-hint{font-size:11px;color:var(--text-muted);line-height:1.5;margin-top:12px;}';
+    document.head.appendChild(style);
+
+    const card = document.createElement('div');
+    card.className = 'spectrum-card';
+    card.id = 'clearear-amp-panel';
+    card.innerHTML =
+      '<div class="qa-title" style="margin-bottom:2px">Amplification</div>' +
+      '<div class="ce-row"><span>Gain</span><span class="ce-val" id="ce-gain-val"></span></div>' +
+      '<input type="range" id="ce-gain" min="0" max="30" step="1">' +
+      '<div class="ce-row"><span>Threshold</span><span class="ce-val" id="ce-thresh-val"></span></div>' +
+      '<input type="range" id="ce-thresh" min="30" max="100" step="1">' +
+      '<div class="ce-hint">Sounds quieter than the threshold are amplified by the gain. Sounds at or above it (your own voice, the loudest sounds) get 0 dB and are not amplified.</div>';
+    host.appendChild(card);
+
+    const gainEl = card.querySelector('#ce-gain');
+    const threshEl = card.querySelector('#ce-thresh');
+    const gainVal = card.querySelector('#ce-gain-val');
+    const threshVal = card.querySelector('#ce-thresh-val');
+
+    function syncLabels() {
+      gainVal.textContent = '+' + manualGainDb + ' dB';
+      threshVal.textContent = manualThresholdDb + ' dB';
+    }
+    gainEl.value = manualGainDb;
+    threshEl.value = manualThresholdDb;
+    syncLabels();
+
+    gainEl.addEventListener('input', function () {
+      manualGainDb = parseInt(gainEl.value, 10) || 0;
+      localStorage.setItem('clearear.manualGainDb', manualGainDb);
+      syncLabels();
+    });
+    threshEl.addEventListener('input', function () {
+      manualThresholdDb = parseInt(threshEl.value, 10) || 65;
+      localStorage.setItem('clearear.manualThresholdDb', manualThresholdDb);
+      syncLabels();
+    });
   }
 
   // ===========================================================================
@@ -663,7 +732,10 @@
       speechDetected: speechDetected,
       snrDb: lastSnrDb,
       noiseFloor: noiseFloor,
-      agc: lastAgc,
+      agc: undefined,
+      manualGainDb: manualGainDb,
+      manualThresholdDb: manualThresholdDb,
+      boost: lastBoost,
       prescribedDb: Array.from(prescribedDb),
       strengths: { cancel: proc.cancel, speech: proc.speech, transparency: proc.transparency },
       latencyMs: Math.round(baseMs + outMs),
@@ -692,6 +764,7 @@
   };
 
   injectDeviceHighlightCSS();
+  injectControls();
 
   const unlock = function () {
     start().catch(function () {});
@@ -706,6 +779,7 @@
   } else {
     document.addEventListener('DOMContentLoaded', function () {
       injectDeviceHighlightCSS();
+      injectControls();
       setTimeout(function () { start().catch(function () {}); }, 100);
     });
   }
