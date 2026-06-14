@@ -207,6 +207,17 @@
   .event-tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 4px; background: var(--bg-elevated); color: var(--text-secondary); text-align: center; justify-self: end; }
   .event-duration { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
   .playback-section { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 24px; margin-top: 20px; }
+  .captions-layout { display: grid; grid-template-columns: 1fr 280px; gap: 24px; height: calc(100vh - 200px); min-height: 500px; }
+  .captions-stream { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 32px 40px; overflow-y: auto; position: relative; }
+  .captions-status { position: sticky; top: -32px; margin: -32px -40px 24px; padding: 14px 40px; background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 10px; z-index: 2; }
+  .captions-text { font-family: var(--font-display); font-size: 26px; line-height: 1.5; color: var(--text-secondary); }
+  .caption-segment { margin-bottom: 28px; }
+  .caption-speaker { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 6px; }
+  .caption-segment.live .captions-text { color: var(--text-primary); }
+  .caption-segment.live .caption-speaker { color: var(--accent); }
+  .caption-cursor { display: inline-block; width: 3px; height: 24px; background: var(--accent); vertical-align: middle; margin-left: 4px; animation: cursor-blink 1s ease-in-out infinite; }
+  @keyframes cursor-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+  .captions-side { display: flex; flex-direction: column; gap: 16px; }
   .playback-controls { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
   .playback-btn { padding: 10px 16px; background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: 8px; font-size: 12.5px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; transition: all 0.15s ease; }
   .playback-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
@@ -241,7 +252,7 @@
     .main { padding: 20px 16px 100px; }
     .screen-title { font-size: 32px; }
     .screen-header { flex-direction: column; align-items: flex-start; gap: 16px; }
-    .live-grid, .tune-layout, .assistant-wrap { grid-template-columns: 1fr; }
+    .live-grid, .tune-layout, .assistant-wrap, .captions-layout { grid-template-columns: 1fr; }
     .journal-summary { grid-template-columns: 1fr 1fr; }
     .eq-bands { grid-template-columns: repeat(4, 1fr); }
     .vis-db { font-size: 56px; }
@@ -551,30 +562,34 @@
       <div class="screen-header">
         <div>
           <h1 class="screen-title">Captions</h1>
-          <div class="screen-subtitle">Live transcription · wake phrase detection active</div>
+          <div class="screen-subtitle">Live transcription. Scans every utterance for the wake phrase.</div>
         </div>
         <div class="header-actions">
           <button class="btn" id="caption-clear-btn"><i data-lucide="trash-2" style="width:14px;height:14px"></i> Clear</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 280px;gap:24px;height:calc(100vh - 200px);min-height:500px">
-        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:16px;padding:32px 40px;overflow-y:auto;position:relative">
-          <div style="position:sticky;top:-32px;margin:-32px -40px 24px;padding:14px 40px;background:var(--bg-surface);border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px;z-index:2">
+      <div class="captions-layout">
+        <div class="captions-stream">
+          <div class="captions-status">
             <div class="status-pulse"></div>
             <span id="captions-status-text" style="font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em">Waiting for speech</span>
           </div>
-          <div id="captions-content" style="font-family:var(--font-display);font-size:24px;line-height:1.6;color:var(--text-secondary)"></div>
+          <div id="captions-content"></div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="captions-side">
           <div class="suggestions-card">
-            <div class="suggestions-title">This session</div>
+            <div class="suggestions-title">This conversation</div>
             <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0">
               <span style="color:var(--text-secondary)">Duration</span>
               <span id="caption-duration" style="font-family:var(--font-mono)">0:00</span>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0">
-              <span style="color:var(--text-secondary)">Segments</span>
-              <span id="caption-segments" style="font-family:var(--font-mono)">0</span>
+              <span style="color:var(--text-secondary)">Speakers</span>
+              <span id="caption-speakers" style="font-family:var(--font-mono)">1</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0">
+              <span style="color:var(--text-secondary)">Confidence</span>
+              <span id="caption-confidence" style="font-family:var(--font-mono);color:var(--accent)">0%</span>
             </div>
           </div>
           <div class="suggestions-card">
@@ -1209,28 +1224,89 @@ function createBackgroundRecognition() {
 
       // ─── CONVERSATION MODE: route all results to voice handler ───
       if (voiceMode.inConversation) {
-        // Only process final results (ignore interim to avoid other people's speech)
+        // Check for "stop talking" command (works on interim for fast response)
+        const lower = text.toLowerCase();
+        if (lower.includes('stop talking') || lower.includes('stop speaking') || lower.includes('shut up') || lower.includes('be quiet') || lower.includes('stop please')) {
+          if (voiceMode.speaking) {
+            interruptSpeech();
+          }
+          // Fully end conversation - require wake word again
+          voiceMode.accumulatedText = '';
+          clearTimeout(voiceMode.sentenceTimer);
+          clearTimeout(voiceMode.followUpTimeout);
+          voiceMode.followUpWindow = false;
+          endConversationMode();
+          playChime('sleep');
+          showVoiceActive(false);
+          toast('Speech stopped');
+          continue;
+        }
+
+        // ANY speech (even interim) means user is active - reset silence timer
+        voiceMode.lastSpeechAt = Date.now();
+        clearTimeout(voiceMode.silenceTimer);
+        voiceMode.silenceTimer = setTimeout(() => {
+          if (voiceMode.speaking) { setTimeout(() => resetSilenceTimer(), 2000); return; }
+          if (voiceMode.accumulatedText.trim()) {
+            const t = voiceMode.accumulatedText.trim();
+            voiceMode.accumulatedText = '';
+            processUserUtterance(t);
+          } else {
+            endConversationMode();
+            playChime('sleep');
+            showVoiceActive(false);
+          }
+        }, voiceMode.SILENCE_TIMEOUT);
+
+        // Only accumulate final results and trigger the sentence timer
         if (result.isFinal) {
-          voiceMode.lastSpeechAt = Date.now();
+          // Don't accumulate stop commands that made it to final
+          const lowerFinal = text.toLowerCase();
+          if (lowerFinal.includes('stop talking') || lowerFinal.includes('stop speaking') || lowerFinal.includes('shut up') || lowerFinal.includes('be quiet') || lowerFinal.includes('stop please')) {
+            continue;
+          }
           voiceMode.accumulatedText += ' ' + text;
           console.log('[ClearEar] Voice accumulated:', voiceMode.accumulatedText.trim());
-          resetSilenceTimer();
+          // Sentence timer: send after 2.5s of no new final results
+          clearTimeout(voiceMode.sentenceTimer);
+          voiceMode.sentenceTimer = setTimeout(() => {
+            if (voiceMode.inConversation && voiceMode.accumulatedText.trim()) {
+              const t = voiceMode.accumulatedText.trim();
+              voiceMode.accumulatedText = '';
+              processUserUtterance(t);
+            }
+          }, 2500);
         }
         continue;
       }
 
       // ─── FOLLOW-UP WINDOW: after AI responds, listen for 5s without wake word ───
-      if (voiceMode.followUpWindow && Date.now() - voiceMode.followUpStart < 5000) {
+      if (voiceMode.followUpWindow) {
         if (result.isFinal && text.length > 2) {
+          // Filter out stop commands - don't send them as queries
+          const lowerFollow = text.toLowerCase();
+          if (lowerFollow.includes('stop talking') || lowerFollow.includes('stop speaking') || lowerFollow.includes('shut up') || lowerFollow.includes('be quiet') || lowerFollow.includes('stop please')) {
+            continue;
+          }
+          // User spoke during follow-up - start new conversation
           voiceMode.followUpWindow = false;
+          clearTimeout(voiceMode.followUpTimeout);
           startConversationMode(text);
           return;
         }
+        // Interim results during follow-up: extend the window since user is talking
+        if (!result.isFinal && text.length > 2) {
+          voiceMode.followUpStart = Date.now(); // reset the clock
+          clearTimeout(voiceMode.followUpTimeout);
+          voiceMode.followUpTimeout = setTimeout(() => {
+            if (voiceMode.followUpWindow) {
+              voiceMode.followUpWindow = false;
+              playChime('sleep');
+              showVoiceActive(false);
+            }
+          }, 5000);
+        }
         continue;
-      } else if (voiceMode.followUpWindow) {
-        voiceMode.followUpWindow = false;
-        playChime('sleep');
-        showVoiceActive(false);
       }
 
       // ─── NORMAL MODE: wake word detection + captions ───
@@ -1254,11 +1330,13 @@ function createBackgroundRecognition() {
 
       if (result.isFinal) {
         const now = Date.now();
-        if (now - captionsState.lastFinalAt > 3000) captionsState.currentSpeaker = (captionsState.currentSpeaker % 3) + 1;
         captionsState.lastFinalAt = now;
-        const speaker = 'Speaker ' + captionsState.currentSpeaker;
-        // Feed to conversation tracker
-        conversationTracker.onSpeechSegment(text, speaker);
+        const confidence = result[0].confidence || 0.7;
+        // Commit to permanent transcript (never gets overridden)
+        commitCaption(text, confidence);
+      } else {
+        // Update live interim display
+        updateCaptionInterim(text);
       }
     }
   };
@@ -1322,48 +1400,140 @@ function stopBackgroundListening() {
   if (captionsState.recognition) { try { captionsState.recognition.stop(); } catch (e) {} }
 }
 
-// ─── Captions display state ───
-const captionsDisplay = {
-  segments: [], // { ts, speaker, text }
-  showSpeakerLabels: true,
-  startedAt: null
+// ─── Captions Engine (rewritten for reliability) ───
+// Chrome's SpeechRecognition has these quirks that cause data loss:
+// 1. It periodically auto-restarts, losing all results
+// 2. resultIndex can jump, causing missed segments
+// 3. Interim results override each other (that's fine - we only commit finals)
+//
+// Strategy: We maintain our own permanent transcript array. Each time a final
+// result arrives, we commit it immediately and never let Chrome touch it again.
+// On restart, we just keep appending. The interim text is shown separately.
+
+const captionsEngine = {
+  transcript: [],        // Permanent array of { id, ts, speaker, text, confidence }
+  interim: '',           // Current interim text (replaced every time)
+  speakerIndex: 1,       // Simple speaker change detection via time gaps
+  lastFinalTs: 0,        // Timestamp of last final result
+  confidence: 0,         // Rolling confidence
+  startedAt: null,       // When captions started
+  showSpeakers: true,    // Whether to show speaker labels
+  SPEAKER_GAP_MS: 2500,  // Gap before switching speaker number
 };
 
-function renderCaptions() {
-  const content = document.getElementById('captions-content');
-  const status = document.getElementById('captions-status-text');
-  if (!content) return;
+// Commit a final transcript segment - this is PERMANENT, never overridden
+function commitCaption(text, confidence) {
+  if (!text || !text.trim()) return;
+  const now = Date.now();
+  if (!captionsEngine.startedAt) captionsEngine.startedAt = now;
 
-  if (!captionsDisplay.segments.length) {
-    content.innerHTML = '<div style="color:var(--text-muted);font-size:16px;font-family:var(--font-body)">Speech will appear here as ClearEar transcribes it in real time. The wake phrase is also detected from this stream.</div>';
-  } else {
-    content.innerHTML = captionsDisplay.segments.slice(-20).map(seg => {
-      const speaker = captionsDisplay.showSpeakerLabels ? '<div style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:4px">' + escapeHtml(seg.speaker) + ' · ' + formatRelativeTime(seg.ts) + '</div>' : '';
-      return '<div style="margin-bottom:20px">' + speaker + '<div style="font-family:var(--font-display);font-size:24px;line-height:1.5;color:var(--text-primary)">' + escapeHtml(seg.text) + '</div></div>';
-    }).join('');
-    content.scrollTop = content.scrollHeight;
+  // Speaker change: if more than 2.5s since last final, assume new speaker
+  if (now - captionsEngine.lastFinalTs > captionsEngine.SPEAKER_GAP_MS) {
+    captionsEngine.speakerIndex = (captionsEngine.speakerIndex % 4) + 1;
   }
+  captionsEngine.lastFinalTs = now;
+  captionsEngine.confidence = confidence || captionsEngine.confidence;
 
-  if (status) {
-    status.textContent = captionsState.listening ? 'Transcribing live' : 'Waiting for speech';
-  }
+  const speaker = 'Speaker ' + captionsEngine.speakerIndex;
+  const segment = {
+    id: createId('cap'),
+    ts: now,
+    speaker: speaker,
+    text: text.trim(),
+    confidence: confidence || 0.7
+  };
 
-  const durEl = document.getElementById('caption-duration');
-  if (durEl && captionsDisplay.startedAt) durEl.textContent = formatDuration(Date.now() - captionsDisplay.startedAt);
-  const segEl = document.getElementById('caption-segments');
-  if (segEl) segEl.textContent = captionsDisplay.segments.length.toString();
+  captionsEngine.transcript.push(segment);
+  // Keep last 100 segments max
+  if (captionsEngine.transcript.length > 100) captionsEngine.transcript.shift();
+
+  // Clear interim since this text is now committed
+  captionsEngine.interim = '';
+
+  // Also feed to conversation tracker for journal
+  conversationTracker.onSpeechSegment(text.trim(), speaker);
+
+  // Render
+  if (state.screen === 'captions') renderCaptionsView();
 }
 
-// Hook into the conversation tracker to also feed captions display
-const _origOnSpeech = conversationTracker.onSpeechSegment.bind(conversationTracker);
-conversationTracker.onSpeechSegment = function(text, speaker) {
-  _origOnSpeech(text, speaker);
-  // Also push to captions display
-  if (!captionsDisplay.startedAt) captionsDisplay.startedAt = Date.now();
-  captionsDisplay.segments.push({ ts: Date.now(), speaker: speaker || 'Speaker', text: text });
-  if (captionsDisplay.segments.length > 100) captionsDisplay.segments.shift();
-  if (state.screen === 'captions') renderCaptions();
-};
+// Update interim text (this gets overwritten constantly - that's fine)
+function updateCaptionInterim(text) {
+  captionsEngine.interim = text || '';
+  if (state.screen === 'captions') renderCaptionsView();
+}
+
+// Render the captions UI
+function renderCaptionsView() {
+  const wrap = document.getElementById('captions-content');
+  const status = document.getElementById('captions-status-text');
+  if (!wrap) return;
+
+  // Show last 10 committed segments
+  const recent = captionsEngine.transcript.slice(-10);
+  let html = '';
+
+  if (!recent.length && !captionsEngine.interim) {
+    html = '<div class="caption-segment"><div class="captions-text" style="color:var(--text-muted)">Speech will appear here as you talk. ClearEar transcribes continuously.</div></div>';
+  } else {
+    // Group consecutive segments from the same speaker within 8s
+    let groups = [];
+    recent.forEach(seg => {
+      const last = groups[groups.length - 1];
+      if (last && last.speaker === seg.speaker && seg.ts - last.lastTs < 8000) {
+        last.texts.push(seg.text);
+        last.lastTs = seg.ts;
+        last.confidence = Math.max(last.confidence, seg.confidence);
+      } else {
+        groups.push({
+          speaker: seg.speaker,
+          ts: seg.ts,
+          lastTs: seg.ts,
+          texts: [seg.text],
+          confidence: seg.confidence
+        });
+      }
+    });
+
+    html = groups.map(g => {
+      const speakerHtml = captionsEngine.showSpeakers
+        ? '<div class="caption-speaker">' + escapeHtml(g.speaker) + ' · ' + formatRelativeTime(g.ts) + '</div>'
+        : '';
+      return '<div class="caption-segment">' + speakerHtml +
+        '<div class="captions-text">' + escapeHtml(g.texts.join(' ')) + '</div></div>';
+    }).join('');
+  }
+
+  // Live interim block
+  if (captionsEngine.interim || captionsState.listening) {
+    const liveLabel = captionsEngine.showSpeakers ? 'Speaker ' + captionsEngine.speakerIndex + ' · now' : 'now';
+    html += '<div class="caption-segment live">' +
+      (captionsEngine.showSpeakers ? '<div class="caption-speaker">' + escapeHtml(liveLabel) + '</div>' : '') +
+      '<div class="captions-text">' + escapeHtml(captionsEngine.interim || 'Listening...') +
+      '<span class="caption-cursor"></span></div></div>';
+  }
+
+  wrap.innerHTML = html;
+  wrap.scrollTop = wrap.scrollHeight;
+
+  // Status bar
+  if (status) {
+    if (!SpeechRecognition) status.textContent = 'Speech recognition unavailable in this browser';
+    else if (captionsState.listening) status.textContent = 'Transcribing live · "' + state.wakePhrase + '" active';
+    else status.textContent = 'Waiting for speech';
+  }
+
+  // Stats panel
+  const durationEl = document.getElementById('caption-duration');
+  if (durationEl && captionsEngine.startedAt) durationEl.textContent = formatDuration(Date.now() - captionsEngine.startedAt);
+  const speakersEl = document.getElementById('caption-speakers');
+  if (speakersEl) speakersEl.textContent = Math.max(1, new Set(captionsEngine.transcript.slice(-20).map(s => s.speaker)).size).toString();
+  const confidenceEl = document.getElementById('caption-confidence');
+  if (confidenceEl) confidenceEl.textContent = Math.round(captionsEngine.confidence * 100) + '%';
+}
+
+// Alias for nav handler
+function renderCaptions() { renderCaptionsView(); }
 
 // ─────────────────────────────────────────
 //  VOICE MODE: Conversational (like ChatGPT voice)
@@ -1655,8 +1825,13 @@ function endConversationMode() {
   clearTimeout(voiceMode.silenceTimer);
   clearTimeout(voiceMode.sentenceTimer);
   setWakeOrbActive(false);
-  // Keep glow on during follow-up window (it turns off with sleep chime)
   console.log('[ClearEar] Conversation ended');
+  // Safety: if glow is still on after 6 seconds and no follow-up started, force it off
+  setTimeout(() => {
+    if (!voiceMode.inConversation && !voiceMode.followUpWindow) {
+      showVoiceActive(false);
+    }
+  }, 6000);
 }
 
 // ─────────────────────────────────────────
@@ -1785,26 +1960,34 @@ window.say = say;
 
 let currentPlayback = null;
 
-function doPlayback(seconds) {
+async function doPlayback(seconds) {
   if (!window.audioEngine || !window.audioEngine.playBufferedAudio) {
     toast('Playback unavailable', 'Microphone not active');
     return;
   }
   if (currentPlayback) {
-    try { currentPlayback.source.stop(); currentPlayback.ctx.close(); } catch (e) {}
+    try {
+      if (currentPlayback.source) currentPlayback.source.stop();
+      if (currentPlayback.ctx) currentPlayback.ctx.close();
+      if (currentPlayback.audio) { currentPlayback.audio.pause(); currentPlayback.audio.src = ''; }
+    } catch (e) {}
   }
-  const result = window.audioEngine.playBufferedAudio(seconds);
+  const statusEl = document.getElementById('playback-status');
+  if (statusEl) statusEl.textContent = 'Loading playback...';
+
+  const result = await window.audioEngine.playBufferedAudio(seconds);
   if (result) {
     currentPlayback = result;
-    const statusEl = document.getElementById('playback-status');
     if (statusEl) statusEl.textContent = 'Playing back last ' + seconds + ' seconds...';
     toast('Replaying', 'Last ' + seconds + ' seconds');
-    result.source.onended = () => {
-      if (statusEl) statusEl.textContent = 'Playback complete';
-      currentPlayback = null;
-    };
+    if (result.source) {
+      result.source.onended = () => { if (statusEl) statusEl.textContent = 'Playback complete'; currentPlayback = null; };
+    } else if (result.audio) {
+      result.audio.onended = () => { if (statusEl) statusEl.textContent = 'Playback complete'; currentPlayback = null; };
+    }
   } else {
-    toast('No audio buffered', 'Wait for microphone to record');
+    toast('No audio buffered', 'Wait a few seconds for recording to start');
+    if (statusEl) statusEl.textContent = 'No audio available yet';
   }
 }
 
@@ -2417,8 +2600,13 @@ document.querySelectorAll('[data-range]').forEach(b => b.addEventListener('click
 
 // Assistant mic button: start conversation mode manually
 document.getElementById('assistant-mic-btn').addEventListener('click', () => {
-  if (voiceMode.inConversation) { endConversationMode(); }
-  else { startConversationMode(); }
+  if (voiceMode.inConversation || voiceMode.followUpWindow) {
+    voiceMode.followUpWindow = false;
+    clearTimeout(voiceMode.followUpTimeout);
+    endConversationMode();
+    playChime('sleep');
+    showVoiceActive(false);
+  } else { startConversationMode(); }
 });
 
 // Assistant text input
@@ -2479,15 +2667,17 @@ document.getElementById('device-picker-modal').addEventListener('click', e => { 
 
 // Captions controls
 document.getElementById('caption-clear-btn').addEventListener('click', () => {
-  captionsDisplay.segments = [];
-  captionsDisplay.startedAt = null;
-  renderCaptions();
+  captionsEngine.transcript = [];
+  captionsEngine.interim = '';
+  captionsEngine.startedAt = null;
+  captionsEngine.speakerIndex = 1;
+  renderCaptionsView();
   toast('Captions cleared');
 });
 document.getElementById('caption-speaker-toggle').addEventListener('click', e => {
-  captionsDisplay.showSpeakerLabels = !captionsDisplay.showSpeakerLabels;
-  e.target.classList.toggle('on', captionsDisplay.showSpeakerLabels);
-  renderCaptions();
+  captionsEngine.showSpeakers = !captionsEngine.showSpeakers;
+  e.target.classList.toggle('on', captionsEngine.showSpeakers);
+  renderCaptionsView();
 });
 
 // Escape key
