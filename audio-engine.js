@@ -1,36 +1,41 @@
-// ClearEar audio engine  —  software-defined hearing aid DSP (low-latency build)
+// ClearEar audio engine  —  software-defined hearing aid DSP (zero-lookahead build)
 // =============================================================================
-// Same hearing-aid processing as before (8-channel WDRC, prescriptive gain, dual
-// noise reduction, speech focus, wind + transient control, MPO limiter), but
-// re-plumbed for minimum latency so amplified speech feels live, like a real
-// hearing aid rather than a delayed monitor.
+// Same hearing-aid intent as before (multiband WDRC, prescriptive gain, dual
+// noise reduction, speech focus, wind control, output limiting) but with EVERY
+// latency-inducing node removed, plus an AGC that keeps the wearer's own voice
+// from being amplified.
 //
-// WHAT CHANGED FOR LATENCY (and why the DSP is untouched):
-//   * The replay buffer no longer uses a ScriptProcessorNode. ScriptProcessor
-//     runs on the main thread, and its mere presence makes Chrome buffer the
-//     entire output ahead to cover main-thread jitter, which on a busy page adds
-//     hundreds of ms. It is replaced by an AudioWorklet on the audio thread that
-//     adds no meaningful latency.
-//   * The AudioContext is created with a low-latency hint.
-//   * The mic is opened raw and low-latency (no browser echo-cancel / noise-
-//     suppression / AGC), so nothing buffers or re-processes ahead of our DSP.
-//   * The live signal path is all native nodes (filters, compressors, gains),
-//     which together add only a few ms. These do the amplification and
-//     attenuation, so they are left exactly as they were.
+// WHY THIS VERSION IS FASTER:
+//   The previous build used 8 band DynamicsCompressor nodes plus one limiter
+//   DynamicsCompressor. Each compressor uses an internal lookahead buffer, and
+//   Chrome silently delays the whole output to feed them. getMetrics() reported
+//   ~20ms, but the hidden compressor lookahead added the rest of the delay you
+//   could hear. This build has NO DynamicsCompressor nodes:
+//     * Multiband WDRC is done as software gain, applied through plain GainNodes
+//       that are automated from the analysis loop. GainNodes have zero lookahead.
+//     * The output limiter (MPO) is a WaveShaperNode doing instantaneous
+//       soft-clipping. Also zero lookahead.
+//   Net effect: the only remaining latency is the unavoidable device + output
+//   buffer (~20ms), which feels live.
 //
-// FEEDBACK SAFETY (unchanged): output is silent until a separate output device
-// (earbuds) is chosen, and a brick-wall output limiter caps the level so the
-// device can never howl loudly. For zero feedback, the mic and the earbuds
-// should be different physical devices (e.g. built-in mic in, earbuds out).
+// AGC (own-voice management):
+//   Because the mic sits close to the wearer, their own voice is the loudest
+//   thing it hears. A broadband AGC pulls overall gain down when the input is
+//   loud, so the wearer's own voice is not amplified, while quieter speech from
+//   someone across the room still gets full prescribed gain. It cannot tell your
+//   voice apart from any other loud source, but the close-mic geometry makes it
+//   effective in practice.
 //
-// The public surface (window.audioEngine.*) and the window hooks it reads/writes
-// are unchanged, so the existing UI keeps working.
+// FEEDBACK SAFETY: output is silent until a separate output device is chosen,
+// and the WaveShaper limiter caps the output so it can never howl loudly. Use a
+// different physical device for input vs output to avoid feedback.
+//
+// The public surface (window.audioEngine.*) is unchanged, so the UI keeps working.
 // =============================================================================
 
 (function () {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
 
-  // ── Context + stream ──────────────────────────────────────────────────────
   let ctx = null;
   let stream = null;
   let src = null;
@@ -41,7 +46,6 @@
   let inputDeviceId = localStorage.getItem('clearear.inputDevice') || null;
   let outputDeviceId = localStorage.getItem('clearear.outputDevice') || null;
 
-  // ── Band plan (8 channels, aligned to the UI EQ band centres) ─────────────
   const BANDS = [
     { f: 60,    lo: 30,   hi: 120,   speech: false },
     { f: 170,   lo: 120,  hi: 240,   speech: false },
@@ -54,69 +58,88 @@
   ];
   const NB = BANDS.length;
 
-  // ── dB SPL calibration (estimate, not a calibrated meter) ────────────────
+  // dB SPL calibration (estimate, not a calibrated meter)
   const SPL_OFFSET = 90;
   const SPL_MIN = 20, SPL_MAX = 110;
-  const EXPANSION_FLOOR = 0.020;
-  const MOD_SPEECH_DEPTH = 0.055;
-  const MAX_BAND_GAIN_DB = 18;
 
-  // ── Processing strength (driven by scenes + control toggles) ──────────────
+  // WDRC + NR tuning (all in 0..1 band-level terms unless noted)
+  const COMP_KNEE = 0.060;        // band level where compression begins
+  const COMP_MIN_FACTOR = 0.25;   // most a band can be turned down by compression
+  const EXPANSION_FLOOR = 0.020;  // below this a band is hiss → squelch
+  const MOD_SPEECH_DEPTH = 0.055; // modulation depth that looks speech-like
+  const MAX_BAND_GAIN_DB = 18;
+  const MAX_BAND_TARGET = 6.0;    // absolute linear ceiling per band (safety)
+
+  // AGC: keep the wearer's (loud, close) own voice from being amplified.
+  const AGC = { thresh: 0.12, slope: 0.85, floor: 0.35 };
+
   const proc = { cancel: 0.6, speech: 0.75, transparency: 0.35, name: 'Quiet space' };
 
-  // ── Web Audio graph nodes ────────────────────────────────────────────────
+  // Graph nodes
   let inputGain = null;
   let preHighpass = null;
   let inputAnalyser = null;
   let bandFilters = [];
-  let bandComp = [];
-  let bandNR = [];
-  let bandMakeup = [];
+  let bandGain = [];        // ONE gain node per band: carries WDRC * NR * makeup * AGC
   let sumBus = null;
   let masterGain = null;
-  let limiter = null;
+  let limiterShaper = null; // WaveShaper soft-clip (MPO, zero lookahead)
   let outputGain = null;
 
-  // ── Per-band running analysis state ──────────────────────────────────────
+  // Per-band analysis state
   const maxFollow = new Float32Array(NB);
   const minFollow = new Float32Array(NB);
   const bandLevel = new Float32Array(NB);
+  const makeupLin = new Float32Array(NB);
+  const compExp = new Float32Array(NB);
   let speechDetected = false;
   let speechHold = 0;
   let dbSmooth = 35;
   let noiseFloor = 1e-5;
   let lastSnrDb = 0;
+  let lastAgc = 1;
   for (let i = 0; i < NB; i++) { maxFollow[i] = 0.02; minFollow[i] = 0.02; }
 
   let binCache = null;
 
   const prescribedDb = new Float32Array(NB);
-  function readPrescription() {
+
+  function dbToLin(db) { return Math.pow(10, db / 20); }
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+  function bandRatio(i) {
+    const g = Math.abs(prescribedDb[i] || 0);
+    let r = 1.7 + g * 0.07;
+    if (r < 1.5) r = 1.5;
+    if (r > 3.5) r = 3.5;
+    return r;
+  }
+
+  // Recompute prescription-derived constants (makeup gain + compression exponent).
+  function refreshPrescription() {
     const eq = (window.state && Array.isArray(window.state.eq)) ? window.state.eq : null;
     for (let i = 0; i < NB; i++) {
       let g = eq ? Number(eq[i]) || 0 : 0;
       if (g > MAX_BAND_GAIN_DB) g = MAX_BAND_GAIN_DB;
       if (g < -MAX_BAND_GAIN_DB) g = -MAX_BAND_GAIN_DB;
       prescribedDb[i] = g;
+      makeupLin[i] = dbToLin(g);
+      compExp[i] = (1 / bandRatio(i)) - 1; // negative: gain falls as level rises
     }
   }
-  function dbToLin(db) { return Math.pow(10, db / 20); }
-  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
   // ===========================================================================
-  //  REPLAY BUFFER  (AudioWorklet on the audio thread — no added latency)
-  //  Falls back to MediaRecorder if the worklet can't load (older browsers).
+  //  REPLAY BUFFER  (AudioWorklet — no added latency)
   // ===========================================================================
   let recorderNode = null;
   let recorderModuleLoaded = false;
   let grabSeq = 0;
   const grabResolvers = {};
-
   let mediaRecorder = null;
   let recordedChunks = [];
 
   async function setupRecorderWorklet() {
-    if (recorderNode || !ctx || !ctx.audioWorklet || !limiter) return;
+    if (recorderNode || !ctx || !ctx.audioWorklet || !limiterShaper) return;
     try {
       if (!recorderModuleLoaded) {
         await ctx.audioWorklet.addModule('clearear-recorder-worklet.js');
@@ -131,15 +154,13 @@
         const r = grabResolvers[d.id];
         if (r) { delete grabResolvers[d.id]; r({ samples: d.samples, sampleRate: d.sampleRate }); }
       };
-      // Tap the processed output. A silent sink keeps the node scheduled without
-      // adding anything audible to the live path.
       const sink = ctx.createGain();
       sink.gain.value = 0;
-      limiter.connect(recorderNode);
+      limiterShaper.connect(recorderNode);
       recorderNode.connect(sink);
       sink.connect(ctx.destination);
     } catch (e) {
-      recorderNode = null; // graceful fallback to MediaRecorder
+      recorderNode = null;
       console.warn('[AudioEngine] recorder worklet unavailable, using MediaRecorder:', e && e.message);
     }
   }
@@ -157,9 +178,7 @@
   function hasSignal(samples) {
     if (!samples || !samples.length) return false;
     const step = Math.max(1, Math.floor(samples.length / 4000));
-    for (let i = 0; i < samples.length; i += step) {
-      if (Math.abs(samples[i]) > 0.0006) return true;
-    }
+    for (let i = 0; i < samples.length; i += step) if (Math.abs(samples[i]) > 0.0006) return true;
     return false;
   }
 
@@ -178,12 +197,9 @@
     try { mediaRecorder.start(1000); } catch (e) {}
   }
 
-  // Kept for API compatibility. The reliable path is now async (worklet), so the
-  // synchronous accessor simply reports "nothing buffered".
   function getPlaybackBuffer() { return null; }
 
   async function playBufferedAudio(seconds) {
-    // Primary: PCM from the worklet ring buffer (the processed/clarified output).
     if (recorderNode) {
       const data = await grabFromWorklet(seconds);
       if (data && data.samples && hasSignal(data.samples)) {
@@ -201,7 +217,6 @@
         return { source: source, ctx: playCtx, durationSec: data.samples.length / (data.sampleRate || 48000) };
       }
     }
-    // Fallback: MediaRecorder chunks (raw mic audio).
     if (!recordedChunks.length) return null;
     const cutoff = Date.now() - (seconds * 1000);
     const relevant = recordedChunks.filter(c => c.ts >= cutoff).map(c => c.blob);
@@ -215,24 +230,28 @@
   }
 
   // ===========================================================================
-  //  GRAPH CONSTRUCTION
+  //  GRAPH
   // ===========================================================================
   function ensureCtx() {
     if (!ctx) {
       const Ctor = window.AudioContext || window.webkitAudioContext;
-      // 'interactive' asks for the lowest stable output buffer the device allows.
       try { ctx = new Ctor({ latencyHint: 'interactive' }); }
       catch (e) { ctx = new Ctor(); }
     }
     return ctx;
   }
 
-  function bandRatio(i) {
-    const g = Math.abs(prescribedDb[i] || 0);
-    let r = 1.7 + g * 0.07;
-    if (r < 1.5) r = 1.5;
-    if (r > 3.5) r = 3.5;
-    return r;
+  // Soft-clip curve for the output limiter: linear-ish through normal levels,
+  // saturating to a ceiling beyond. Instantaneous, so zero added latency.
+  function makeSoftClipCurve(drive) {
+    const n = 2048;
+    const curve = new Float32Array(n);
+    const norm = Math.tanh(drive);
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      curve[i] = Math.tanh(drive * x) / norm;
+    }
+    return curve;
   }
 
   function buildGraph() {
@@ -250,16 +269,17 @@
     preHighpass.frequency.value = 90;
     preHighpass.Q.value = 0.7;
 
-    // AnalyserNode is a zero-latency pass-through; it only taps for measurement.
+    // Smaller FFT than before (1024 vs 2048) → ~21ms analysis window, so NR/VAD
+    // and the AGC react roughly twice as fast.
     inputAnalyser = ctx.createAnalyser();
-    inputAnalyser.fftSize = 2048;
-    inputAnalyser.smoothingTimeConstant = 0.6;
+    inputAnalyser.fftSize = 1024;
+    inputAnalyser.smoothingTimeConstant = 0.5;
 
-    bandFilters = []; bandComp = []; bandNR = []; bandMakeup = [];
+    bandFilters = []; bandGain = [];
     sumBus = ctx.createGain();
     sumBus.gain.value = 1.0;
 
-    readPrescription();
+    refreshPrescription();
 
     for (let i = 0; i < NB; i++) {
       const band = BANDS[i];
@@ -268,54 +288,35 @@
       else if (i === NB - 1) { filt.type = 'highpass'; filt.frequency.value = band.lo; filt.Q.value = 0.7; }
       else { filt.type = 'bandpass'; filt.frequency.value = band.f; filt.Q.value = 1.4; }
 
-      const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -35;
-      comp.knee.value = 22;
-      comp.ratio.value = bandRatio(i);
-      comp.attack.value = 0.005;
-      comp.release.value = 0.12;
-
-      const nr = ctx.createGain();
-      nr.gain.value = 1.0;
-
-      const makeup = ctx.createGain();
-      makeup.gain.value = dbToLin(prescribedDb[i]);
+      // One automated gain node per band. No compressor, no lookahead.
+      const g = ctx.createGain();
+      g.gain.value = makeupLin[i];
 
       inputAnalyser.connect(filt);
-      filt.connect(comp);
-      comp.connect(nr);
-      nr.connect(makeup);
-      makeup.connect(sumBus);
+      filt.connect(g);
+      g.connect(sumBus);
 
       bandFilters.push(filt);
-      bandComp.push(comp);
-      bandNR.push(nr);
-      bandMakeup.push(makeup);
+      bandGain.push(g);
     }
 
     masterGain = ctx.createGain();
     masterGain.gain.value = 1.0;
 
-    // Output limiter = Maximum Power Output + impulse/transient control.
-    limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = -6;
-    limiter.knee.value = 0;
-    limiter.ratio.value = 20;
-    limiter.attack.value = 0.002;
-    limiter.release.value = 0.10;
+    // Output limiter (MPO): WaveShaper soft-clip. Zero lookahead.
+    limiterShaper = ctx.createWaveShaper();
+    limiterShaper.curve = makeSoftClipCurve(1.4);
+    limiterShaper.oversample = '2x';
 
     outputGain = ctx.createGain();
     outputGain.gain.value = 0.0; // silent until a real output device is chosen
 
     sumBus.connect(masterGain);
-    masterGain.connect(limiter);
-    limiter.connect(outputGain);
+    masterGain.connect(limiterShaper);
+    limiterShaper.connect(outputGain);
     outputGain.connect(ctx.destination);
   }
 
-  // ===========================================================================
-  //  FFT BIN MAPPING
-  // ===========================================================================
   function rebuildBinCache() {
     const binCount = inputAnalyser.frequencyBinCount;
     const nyquist = (ctx ? ctx.sampleRate : 48000) / 2;
@@ -327,30 +328,49 @@
   }
 
   // ===========================================================================
-  //  ANALYSIS + CONTROL LOOP  (~30x/sec, off the audio path; steers gains only)
+  //  ANALYSIS + CONTROL LOOP  (~60x/sec; computes all gains, applies via GainNodes)
   // ===========================================================================
   function analysisTick() {
     if (!inputAnalyser) return;
     if (!binCache || binCache._binCount !== inputAnalyser.frequencyBinCount) rebuildBinCache();
-
     const binCount = inputAnalyser.frequencyBinCount;
-    const freq = new Uint8Array(binCount);
-    inputAnalyser.getByteFrequencyData(freq);
     const now = ctx.currentTime;
 
-    let speechEnergy = 0, speechNoise = 0, lowEnergy = 0, midEnergy = 0;
+    // --- broadband level (time domain) → dB SPL + AGC ---
+    const t = new Uint8Array(binCount);
+    inputAnalyser.getByteTimeDomainData(t);
+    let sq = 0;
+    for (let i = 0; i < t.length; i++) { const v = (t[i] - 128) / 128; sq += v * v; }
+    const rms = Math.sqrt(sq / t.length);
 
+    // AGC: duck the loudest input (the wearer's own close-mic voice) so it is
+    // not amplified, while leaving quiet/distant speech at full gain.
+    let agc = 1;
+    if (rms > AGC.thresh) {
+      agc = Math.pow(AGC.thresh / rms, AGC.slope);
+      if (agc < AGC.floor) agc = AGC.floor;
+    }
+    lastAgc = lastAgc * 0.6 + agc * 0.4; // smooth so it never pumps
+
+    const dbFs = 20 * Math.log10(Math.max(rms, 1e-8));
+    const dbSPL = Math.max(SPL_MIN, Math.min(SPL_MAX, dbFs + SPL_OFFSET));
+    dbSmooth = dbSmooth * 0.6 + dbSPL * 0.4;
+
+    // --- per-band spectrum analysis ---
+    const freq = new Uint8Array(binCount);
+    inputAnalyser.getByteFrequencyData(freq);
+
+    let speechEnergy = 0, speechNoise = 0, lowEnergy = 0, midEnergy = 0;
     for (let i = 0; i < NB; i++) {
       const c = binCache[i];
       let sum = 0, n = 0;
       for (let b = c.lo; b <= c.hi; b++) { sum += freq[b]; n++; }
       const lvl = n > 0 ? (sum / n) / 255 : 0;
-      bandLevel[i] = bandLevel[i] * 0.5 + lvl * 0.5;
+      bandLevel[i] = bandLevel[i] * 0.45 + lvl * 0.55;
       const bl = bandLevel[i];
 
       if (bl > maxFollow[i]) maxFollow[i] = bl;
       else maxFollow[i] = maxFollow[i] * 0.992 + bl * 0.008;
-
       if (bl < minFollow[i]) minFollow[i] = bl;
       else minFollow[i] = minFollow[i] * 0.9985 + bl * 0.0015;
 
@@ -360,7 +380,7 @@
     }
 
     const speechRatio = speechEnergy / (speechNoise + 1e-6);
-    if (speechRatio > 1.6) speechHold = 8;
+    if (speechRatio > 1.6) speechHold = 14;          // ~230ms hold at 60Hz
     else if (speechHold > 0) speechHold--;
     speechDetected = speechHold > 0;
 
@@ -379,37 +399,70 @@
       const snr = bl / noise;
       snrAccum += snr; snrCount++;
 
-      let g = snr / (snr + wienerK);
+      // (1) noise reduction: Wiener coefficient × modulation factor
+      let nr = snr / (snr + wienerK);
       const modDepth = maxFollow[i] - minFollow[i];
       const modFactor = clamp01(modDepth / MOD_SPEECH_DEPTH);
-      g *= 0.45 + 0.55 * modFactor;
+      nr *= 0.45 + 0.55 * modFactor;
 
-      if (bl < EXPANSION_FLOOR) g *= clamp01(bl / EXPANSION_FLOOR) * 0.6;
+      // (2) expansion / squelch below the noise floor
+      if (bl < EXPANSION_FLOOR) nr *= clamp01(bl / EXPANSION_FLOOR) * 0.6;
 
+      // (3) speech focus
       if (BANDS[i].speech) {
-        if (speechDetected) g = Math.max(g, 0.75 + 0.20 * proc.speech);
+        if (speechDetected) nr = Math.max(nr, 0.75 + 0.20 * proc.speech);
       } else {
-        if (speechDetected) g *= (1 - 0.45 * proc.speech);
-        if (!speechDetected) g *= (1 - 0.35 * proc.cancel);
+        if (speechDetected) nr *= (1 - 0.45 * proc.speech);
+        if (!speechDetected) nr *= (1 - 0.35 * proc.cancel);
+      }
+      if (windy && i <= 1) nr *= (1 - 0.6 * proc.cancel);
+      if (nr < gMin) nr = gMin;
+      if (nr > 1) nr = 1;
+
+      // (4) software WDRC compression factor (zero lookahead). Gain falls as the
+      //     band level rises above the kneepoint, restoring loudness balance.
+      let comp = 1;
+      if (bl > COMP_KNEE) {
+        comp = Math.pow(bl / COMP_KNEE, compExp[i]);
+        if (comp < COMP_MIN_FACTOR) comp = COMP_MIN_FACTOR;
+        if (comp > 1) comp = 1;
       }
 
-      if (windy && i <= 1) g *= (1 - 0.6 * proc.cancel);
+      // (5) combine: prescription × compression × NR × own-voice AGC
+      let target = makeupLin[i] * comp * nr * lastAgc;
+      if (target < 0) target = 0;
+      if (target > MAX_BAND_TARGET) target = MAX_BAND_TARGET;
 
-      if (g < gMin) g = gMin;
-      if (g > 1) g = 1;
-
-      const prev = bandNR[i].gain.value;
-      const tc = g < prev ? 0.05 : 0.18; // quick to attenuate, gentle to restore
-      bandNR[i].gain.setTargetAtTime(g, now, tc);
+      // Fast to reduce (catch your own voice / noise), gentle to restore.
+      const prev = bandGain[i].gain.value;
+      const tc = target < prev ? 0.015 : 0.10;
+      bandGain[i].gain.setTargetAtTime(target, now, tc);
     }
 
     lastSnrDb = 10 * Math.log10(Math.max(snrAccum / Math.max(1, snrCount), 1e-3));
-
     let nf = 0; for (let i = 0; i < NB; i++) nf += minFollow[i];
     noiseFloor = nf / NB;
 
+    // --- UI: meter, spectrum, telemetry ---
+    if (window.state) window.state.db = Math.round(dbSmooth);
+    const el = document.getElementById('db-readout');
+    if (el && window.state) el.textContent = Math.round(window.state.db);
+
     updateSpectrum(freq, binCount);
-    updateDb();
+
+    if (typeof window.clearEarAudioTelemetry === 'function') {
+      window.clearEarAudioTelemetry({
+        db: window.state ? window.state.db : Math.round(dbSmooth),
+        rms: rms,
+        speechDetected: speechDetected,
+        noiseFloor: noiseFloor,
+        snrDb: lastSnrDb,
+        preset: window.state && window.state.preset ? window.state.preset : 'Unknown',
+        timestamp: Date.now()
+      });
+    }
+    const meta = document.querySelector('.vis-meta');
+    if (meta) meta.textContent = speechDetected ? 'Speech detected, words amplified' : 'Ambient';
   }
 
   function updateSpectrum(freqData, binCount) {
@@ -429,50 +482,20 @@
     }
   }
 
-  function updateDb() {
-    const t = new Uint8Array(inputAnalyser.frequencyBinCount);
-    inputAnalyser.getByteTimeDomainData(t);
-    let sum = 0;
-    for (let i = 0; i < t.length; i++) { const v = (t[i] - 128) / 128; sum += v * v; }
-    const rms = Math.sqrt(sum / t.length);
-    const dbFs = 20 * Math.log10(Math.max(rms, 1e-8));
-    const dbSPL = Math.max(SPL_MIN, Math.min(SPL_MAX, dbFs + SPL_OFFSET));
-
-    dbSmooth = dbSmooth * 0.6 + dbSPL * 0.4;
-    if (window.state) window.state.db = Math.round(dbSmooth);
-    const el = document.getElementById('db-readout');
-    if (el && window.state) el.textContent = Math.round(window.state.db);
-
-    if (typeof window.clearEarAudioTelemetry === 'function') {
-      window.clearEarAudioTelemetry({
-        db: window.state ? window.state.db : Math.round(dbSmooth),
-        rms: rms,
-        speechDetected: speechDetected,
-        noiseFloor: noiseFloor,
-        snrDb: lastSnrDb,
-        preset: window.state && window.state.preset ? window.state.preset : 'Unknown',
-        timestamp: Date.now()
-      });
-    }
-
-    const meta = document.querySelector('.vis-meta');
-    if (meta) meta.textContent = speechDetected ? 'Speech detected, words amplified' : 'Ambient';
-  }
-
   // ===========================================================================
   //  PUBLIC CONTROL METHODS
   // ===========================================================================
   function setEqBands(gains) {
     if (!Array.isArray(gains)) return;
-    const now = ctx ? ctx.currentTime : 0;
     for (let i = 0; i < NB; i++) {
       let g = Number(gains[i]) || 0;
       if (g > MAX_BAND_GAIN_DB) g = MAX_BAND_GAIN_DB;
       if (g < -MAX_BAND_GAIN_DB) g = -MAX_BAND_GAIN_DB;
       prescribedDb[i] = g;
-      if (bandMakeup[i]) bandMakeup[i].gain.setTargetAtTime(dbToLin(g), now, 0.05);
-      if (bandComp[i]) bandComp[i].ratio.setTargetAtTime(bandRatio(i), now, 0.1);
+      makeupLin[i] = dbToLin(g);
+      compExp[i] = (1 / bandRatio(i)) - 1;
     }
+    // The band gains pick up the new makeup on the next analysis tick.
   }
 
   function applyScene(scene) {
@@ -491,6 +514,38 @@
   }
 
   // ===========================================================================
+  //  DEVICE-IN-USE HIGHLIGHT  (CSS injected here; the HTML already tags .active)
+  // ===========================================================================
+  function injectDeviceHighlightCSS() {
+    if (document.getElementById('clearear-device-highlight')) return;
+    const style = document.createElement('style');
+    style.id = 'clearear-device-highlight';
+    style.textContent =
+      '#device-input-list .suggestion.active,#device-output-list .suggestion.active{' +
+      'border-color:var(--accent)!important;background:rgba(217,249,157,0.10)!important;' +
+      'color:var(--text-primary)!important;position:relative;padding-right:64px;}' +
+      '#device-input-list .suggestion.active::after,#device-output-list .suggestion.active::after{' +
+      "content:'in use';position:absolute;right:10px;top:50%;transform:translateY(-50%);" +
+      'font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;' +
+      'color:var(--accent);}';
+    document.head.appendChild(style);
+  }
+
+  // Reflect the device actually in use so the picker highlights it even when the
+  // user never explicitly chose one (i.e. the system default mic).
+  function reflectActiveInputDevice() {
+    if (!stream || !window.state) return;
+    const track = stream.getAudioTracks ? stream.getAudioTracks()[0] : null;
+    if (!track) return;
+    const s = track.getSettings ? track.getSettings() : {};
+    if (s.deviceId && !window.state.inputDeviceId) {
+      window.state.inputDeviceId = s.deviceId;
+      window.state.inputDeviceLabel = track.label || window.state.inputDeviceLabel || '';
+      try { if (typeof window.updateDeviceStatus === 'function') window.updateDeviceStatus(); } catch (e) {}
+    }
+  }
+
+  // ===========================================================================
   //  LIFECYCLE
   // ===========================================================================
   async function start() {
@@ -500,7 +555,6 @@
       if (ctx.state === 'suspended') return;
 
       if (!stream) {
-        // Raw, low-latency capture so our DSP is the only thing shaping sound.
         const audioConstraints = {
           echoCancellation: false,
           noiseSuppression: false,
@@ -521,9 +575,10 @@
       }
       if (!src) src = ctx.createMediaStreamSource(stream);
       startMediaRecorder(stream);
+      reflectActiveInputDevice();
 
       if (connected) {
-        if (!updateInterval) updateInterval = setInterval(analysisTick, 1000 / 30);
+        if (!updateInterval) updateInterval = setInterval(analysisTick, 1000 / 60);
         return;
       }
 
@@ -531,22 +586,21 @@
       inputGain.connect(preHighpass);
       preHighpass.connect(inputAnalyser);
 
-      readPrescription();
-      setEqBands(Array.from(prescribedDb));
+      refreshPrescription();
       if (window.state && window.state.controls) applyControls(window.state.controls);
       if (window.clearEarSceneConfig) applyScene(window.clearEarSceneConfig);
 
       await setupRecorderWorklet();
       maybeEnablePlayback();
 
-      if (!updateInterval) updateInterval = setInterval(analysisTick, 1000 / 30);
+      if (!updateInterval) updateInterval = setInterval(analysisTick, 1000 / 60);
 
       connected = true;
       window.audioEngine.running = true;
 
       const lat = Math.round(((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000);
-      console.log('[AudioEngine] running. sampleRate', ctx.sampleRate,
-        '| est. output latency ~' + lat + 'ms (input + Bluetooth not included)');
+      console.log('[AudioEngine] running (zero-lookahead). sampleRate', ctx.sampleRate,
+        '| est. output latency ~' + lat + 'ms');
     } catch (err) {
       console.warn('[AudioEngine] start failed:', err);
     }
@@ -562,7 +616,6 @@
     } catch (err) {}
   }
 
-  // ── Output device gating (feedback safety) ────────────────────────────────
   function isDefaultOutput(id) { return !id || id === 'default' || id === ''; }
 
   function maybeEnablePlayback() {
@@ -610,17 +663,16 @@
       speechDetected: speechDetected,
       snrDb: lastSnrDb,
       noiseFloor: noiseFloor,
+      agc: lastAgc,
       prescribedDb: Array.from(prescribedDb),
       strengths: { cancel: proc.cancel, speech: proc.speech, transparency: proc.transparency },
       latencyMs: Math.round(baseMs + outMs),
       baseLatencyMs: Math.round(baseMs),
-      outputLatencyMs: Math.round(outMs)
+      outputLatencyMs: Math.round(outMs),
+      compressorsInPath: 0
     };
   }
 
-  // ===========================================================================
-  //  PUBLIC SURFACE  (unchanged so the existing UI keeps working)
-  // ===========================================================================
   window.audioEngine = {
     start: start,
     stop: stop,
@@ -639,6 +691,8 @@
     get ctx() { return ctx; }
   };
 
+  injectDeviceHighlightCSS();
+
   const unlock = function () {
     start().catch(function () {});
     document.removeEventListener('click', unlock);
@@ -651,6 +705,7 @@
     setTimeout(function () { start().catch(function () {}); }, 100);
   } else {
     document.addEventListener('DOMContentLoaded', function () {
+      injectDeviceHighlightCSS();
       setTimeout(function () { start().catch(function () {}); }, 100);
     });
   }

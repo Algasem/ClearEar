@@ -27,7 +27,6 @@ class ClearEarRecorder extends AudioWorkletProcessor {
           out[i] = this.buf[read];
           read = (read + 1) % this.bufLen;
         }
-        // Transfer the buffer so there is no copy on the way back.
         this.port.postMessage({ id: msg.id, samples: out, sampleRate: sampleRate }, [out.buffer]);
       }
     };
@@ -46,7 +45,6 @@ class ClearEarRecorder extends AudioWorkletProcessor {
       }
       this.writePos = w;
     }
-    // Keep the processor alive even though we emit silence on the output.
     return true;
   }
 }
